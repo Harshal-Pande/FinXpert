@@ -1,0 +1,93 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model Advisor {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  password  String
+  created_at DateTime @default(now())
+  clients   Client[]
+}
+
+model Client {
+  id                 String   @id @default(uuid())
+  advisor_id         String
+  name               String
+  age                Int
+  occupation         String
+  annual_income      Float
+  monthly_expense    Float
+  emergency_fund     Float?
+  insurance_coverage Float?
+  risk_profile       String?
+  investment_horizon String?
+  created_at        DateTime @default(now())
+  updated_at        DateTime @updatedAt
+  advisor           Advisor  @relation(fields: [advisor_id], references: [id], onDelete: Cascade)
+  portfolio         Portfolio?
+  healthScores      HealthScore[]
+  portfolioTarget   PortfolioTarget?
+}
+
+model Portfolio {
+  id         String   @id @default(uuid())
+  client_id  String   @unique
+  total_value Float   @default(0)
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+  client     Client   @relation(fields: [client_id], references: [id], onDelete: Cascade)
+  assets     Asset[]
+}
+
+model Asset {
+  id           String   @id @default(uuid())
+  portfolio_id String
+  asset_type   String   // stock | mutual_fund | crypto | debt
+  asset_name   String
+  value        Float
+  created_at   DateTime @default(now())
+  updated_at   DateTime @updatedAt
+  portfolio    Portfolio @relation(fields: [portfolio_id], references: [id], onDelete: Cascade)
+
+  @@index([portfolio_id])
+  @@index([asset_type])
+}
+
+model HealthScore {
+  id            String   @id @default(uuid())
+  client_id     String
+  score         Float    // 1-10
+  calculated_at DateTime @default(now())
+  client        Client   @relation(fields: [client_id], references: [id], onDelete: Cascade)
+
+  @@index([client_id])
+}
+
+model PortfolioTarget {
+  id                 String   @id @default(uuid())
+  client_id          String   @unique
+  stock_target       Float    // 0-1 allocation target
+  mutual_fund_target Float
+  crypto_target      Float
+  debt_target        Float
+  created_at         DateTime @default(now())
+  updated_at         DateTime @updatedAt
+  client             Client   @relation(fields: [client_id], references: [id], onDelete: Cascade)
+}
+
+model MarketInsight {
+  id               String   @id @default(uuid())
+  title            String
+  event_type       String
+  severity         String
+  ai_summary       String?
+  affected_clients String[] // JSON array of client IDs or names
+  created_at       DateTime @default(now())
+
+  @@index([created_at])
+}

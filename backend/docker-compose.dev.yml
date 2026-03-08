@@ -1,0 +1,22 @@
+# Development: PostgreSQL only. Run API locally with npm run start:dev
+version: "3.8"
+
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: finxpert
+      POSTGRES_PASSWORD: finxpert
+      POSTGRES_DB: finxpert
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data_dev:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U finxpert"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  postgres_data_dev:
