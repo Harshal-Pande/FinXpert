@@ -111,7 +111,7 @@ export default function ClientsPage() {
                   </td>
                   <td className="px-6 py-4">
                     <span
-                      className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold capitalize ${getRiskBadgeStyles(client.risk_profile)}`}
+                      className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold capitalize ${getRiskBadgeStyles(client.risk_profile ?? '')}`}
                     >
                       {client.risk_profile || '—'}
                     </span>
