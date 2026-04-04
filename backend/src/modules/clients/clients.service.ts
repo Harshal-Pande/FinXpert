@@ -1,40 +1,52 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../database/prisma.service';
+import { UpdateClientDto } from './dto/update-client.dto';
 
 @Injectable()
 export class ClientsService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async findAll(params: { advisorId?: string; search?: string; page?: number; limit?: number }) {
-    const { advisorId, search, page = 1, limit = 100 } = params;
-    
-    console.log('--- Client Fetch Debug ---');
-    console.log('Params Received:', { advisorId, search });
-  
-    const where: any = {};
-    
-    // Force ignore advisorId if it's "undefined" (string) or null
+  async findAll(params: {
+    advisorId?: string;
+    search?: string;
+    riskProfile?: string;
+    page?: number;
+    limit?: number;
+  }) {
+    const { advisorId, search, riskProfile, page = 1, limit = 100 } = params;
+
+    const where: Record<string, unknown> = {};
+
+    // Filter by advisor
     if (advisorId && advisorId !== 'undefined' && advisorId !== 'null') {
       where.advisor_id = advisorId;
     }
-  
-    try {
-      const [items, total] = await Promise.all([
-        this.prisma.client.findMany({
-          where,
-          include: { portfolio: true },
-          skip: (page - 1) * limit,
-          take: limit,
-        }),
-        this.prisma.client.count({ where }),
-      ]);
-  
-      console.log(`DB Found ${items.length} clients out of ${total} total.`);
-      return { items, total, page, limit };
-    } catch (error) {
-      console.error('Database Fetch Error:', error);
-      throw error;
+
+    // Search by name (case-insensitive)
+    if (search && search.trim()) {
+      where.name = {
+        contains: search.trim(),
+        mode: 'insensitive',
+      };
     }
+
+    // Filter by risk profile
+    if (riskProfile) {
+      where.risk_profile = riskProfile;
+    }
+
+    const [items, total] = await Promise.all([
+      this.prisma.client.findMany({
+        where,
+        include: { portfolio: true },
+        skip: (page - 1) * limit,
+        take: limit,
+        orderBy: { created_at: 'desc' },
+      }),
+      this.prisma.client.count({ where }),
+    ]);
+
+    return { items, total, page, limit };
   }
 
   async findOne(id: string) {
@@ -42,30 +54,31 @@ export class ClientsService {
       where: { id },
       include: {
         portfolio: {
-          include: { assets: true }
+          include: { assets: true },
         },
         healthScores: {
           orderBy: { calculated_at: 'desc' },
-          take: 1
-        }
-      }
+          take: 1,
+        },
+        portfolioTarget: true,
+      },
     });
 
     if (!client) throw new NotFoundException(`Client with ID ${id} not found`);
     return client;
   }
 
-  async create(data: any) {
+  async create(data: { advisorId: string; [key: string]: unknown }) {
     const { advisorId, ...rest } = data;
     return this.prisma.client.create({
       data: {
         ...rest,
         advisor_id: advisorId,
-      },
+      } as any,
     });
   }
 
-  async update(id: string, data: any) {
+  async update(id: string, data: UpdateClientDto) {
     return this.prisma.client.update({
       where: { id },
       data,

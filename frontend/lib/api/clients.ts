@@ -31,8 +31,12 @@ export interface ListClientsResponse {
   total: number;
 }
 
-export function listClients(params?: { limit?: number }) {
-  const qs = params?.limit ? `?limit=${params.limit}` : '';
+export function listClients(params?: { limit?: number; search?: string; riskProfile?: string }) {
+  const query = new URLSearchParams();
+  if (params?.limit) query.set('limit', String(params.limit));
+  if (params?.search) query.set('search', params.search);
+  if (params?.riskProfile) query.set('riskProfile', params.riskProfile);
+  const qs = query.toString() ? `?${query.toString()}` : '';
   return apiClient<ListClientsResponse>(`/clients${qs}`);
 }
 

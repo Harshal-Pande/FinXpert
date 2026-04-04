@@ -30,6 +30,8 @@ async function main() {
     { name: 'Kevin Dsouza', age: 28, risk: 'aggressive', income: 1200000, color: 'Crypto' },
   ];
 
+  const createdClients: { id: string; name: string }[] = [];
+
   for (const data of clientsData) {
     const client = await prisma.client.create({
       data: {
@@ -41,6 +43,7 @@ async function main() {
         monthly_expense: data.income / 24, // 50% savings rate
         risk_profile: data.risk,
         emergency_fund: data.income / 4,
+        insurance_coverage: data.income * 5, // 5x annual income
         portfolio: {
           create: {
             total_value: 1000000,
@@ -64,8 +67,50 @@ async function main() {
         }
       }
     });
+    createdClients.push({ id: client.id, name: client.name });
     console.log(`👤 Created client: ${client.name}`);
   }
+
+  // 3. Create sample TodoItems for the advisor
+  const todoItems = [
+    {
+      advisor_id: advisor.id,
+      client_id: createdClients[0]?.id,
+      title: 'Review Rahul\'s portfolio rebalancing',
+      description: 'Check if stock allocation needs adjustment after recent market changes',
+      status: 'pending',
+      due_date: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000), // 2 days from now
+    },
+    {
+      advisor_id: advisor.id,
+      client_id: createdClients[1]?.id,
+      title: 'Schedule Anita\'s quarterly review',
+      description: 'Discuss mutual fund performance and investment horizon',
+      status: 'pending',
+      due_date: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000), // 5 days
+    },
+    {
+      advisor_id: advisor.id,
+      client_id: createdClients[2]?.id,
+      title: 'Assess Kevin\'s crypto exposure risk',
+      description: 'Kevin has aggressive risk profile with high crypto allocation — needs review',
+      status: 'in_progress',
+      due_date: new Date(Date.now() + 1 * 24 * 60 * 60 * 1000), // tomorrow
+    },
+    {
+      advisor_id: advisor.id,
+      title: 'Update market outlook report',
+      description: 'Prepare weekly market analysis based on latest economic data',
+      status: 'pending',
+      due_date: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 1 week
+    },
+  ];
+
+  for (const todo of todoItems) {
+    await prisma.todoItem.create({ data: todo });
+  }
+
+  console.log(`✅ Created ${todoItems.length} todo items`);
 }
 
 main()

@@ -11,6 +11,7 @@ export const envConfig = () => ({
     alphaVantageKey: process.env.ALPHA_VANTAGE_API_KEY,
     binanceBaseUrl: process.env.BINANCE_API_URL ?? 'https://api.binance.com',
     newsApiKey: process.env.NEWS_API_KEY,
+    mfapiBaseUrl: process.env.MFAPI_BASE_URL ?? 'https://api.mfapi.in',
   },
   ai: {
     geminiApiKey: process.env.GEMINI_API_KEY,
