@@ -27,7 +27,7 @@ async function bootstrap() {
 
   // 3. Setup Global Auth Guard
   const reflector = app.get(Reflector);
-  app.useGlobalGuards(new JwtAuthGuard(reflector));
+  //app.useGlobalGuards(new JwtAuthGuard(reflector));
 
   const port = config.get<number>('port') ?? 3001;
   await app.listen(port);

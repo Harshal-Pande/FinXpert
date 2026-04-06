@@ -14,6 +14,7 @@ import { MarketInsightsModule } from './modules/market-insights/market-insights.
 import { DashboardModule } from './modules/dashboard/dashboard.module';
 import { TodosModule } from './modules/todos/todos.module';
 import { AdvisoryModule } from './modules/advisory/advisory.module';
+import { HealthModule } from './health/health.module';
 
 @Module({
   imports: [
@@ -34,6 +35,7 @@ import { AdvisoryModule } from './modules/advisory/advisory.module';
     DashboardModule,
     TodosModule,
     AdvisoryModule,
+    HealthModule,
   ],
 })
 export class AppModule {}
