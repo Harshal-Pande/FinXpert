@@ -8,10 +8,16 @@ async function bootstrap() {
   const app = await NestFactory.create(AppModule);
   const config = app.get(ConfigService);
 
-  // 1. ENABLE CORS - Essential so your Frontend (3000) can talk to Backend (3001)
+  // 1. ENABLE CORS for local frontend ports and optional env override.
+  const allowedOrigins = [
+    'http://localhost:3000',
+    'http://localhost:3010',
+    config.get<string>('FRONTEND_URL'),
+  ].filter((origin): origin is string => Boolean(origin));
+
   app.enableCors({
-    origin: 'http://localhost:3000', // Your Next.js URL
-    methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
+    origin: allowedOrigins,
+    methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
     credentials: true,
   });
 

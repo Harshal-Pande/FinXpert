@@ -1,0 +1,2422 @@
+[
+  {
+    "clientCode": 101,
+    "name": "Rahul Sharma",
+    "age": 30,
+    "occupation": "Software Engineer",
+    "annualIncome": 1200000.0,
+    "monthlyExpense": 60000.0,
+    "riskProfile": "aggressive",
+    "investmentHorizon": "Long",
+    "emergencyFund": 200000.0,
+    "insuranceCoverage": 1000000.0,
+    "portfolioTotalValue": 12495969.4,
+    "portfolioTarget": {
+      "stock": 0.0259,
+      "mutual_fund": 0.0696,
+      "crypto": 0.8859,
+      "debt": 0.0186
+    },
+    "assets": [
+      {
+        "assetType": "stock",
+        "assetName": "Stock Holding 1",
+        "value": 98952.0
+      },
+      {
+        "assetType": "stock",
+        "assetName": "Stock Holding 2",
+        "value": 16320.0
+      },
+      {
+        "assetType": "stock",
+        "assetName": "Stock Holding 3",
+        "value": 79296.0
+      },
+      {
+        "assetType": "stock",
+        "assetName": "Stock Holding 4",
+        "value": 79704.0
+      },
+      {
+        "assetType": "stock",
+        "assetName": "Stock Holding 5",
+        "value": 49383.0
+      },
+      {
+        "assetType": "mutual_fund",
+        "assetName": "Mutual Fund 1",
+        "value": 230484.0
+      },
+      {
+        "assetType": "mutual_fund",
+        "assetName": "Mutual Fund 2",
+        "value": 77365.0
+      },
+      {
+        "assetType": "mutual_fund",
+        "assetName": "Mutual Fund 3",
+        "value": 226339.0
+      },
+      {
+        "assetType": "mutual_fund",
+        "assetName": "Mutual Fund 4",
+        "value": 61198.0
+      },
+      {
+        "assetType": "mutual_fund",
+        "assetName": "Mutual Fund 5",
+        "value": 274600.0
+      },
+      {
+        "assetType": "crypto",
+        "assetName": "Crypto Asset 1",
+        "value": 520722.0
+      },
+      {
+        "assetType": "crypto",
+        "assetName": "Crypto Asset 2",
+        "value": 3873026.58
+      },
+      {
+        "assetType": "crypto",
+        "assetName": "Crypto Asset 3",
+        "value": 382641.09
+      },
+      {
+        "assetType": "crypto",
+        "assetName": "Crypto Asset 4",
+        "value": 3105427.44
+      },
+      {
+        "assetType": "crypto",
+        "assetName": "Crypto Asset 5",
+        "value": 3188115.29
+      },
+      {
+        "assetType": "debt",
+        "assetName": "Debt Instrument 1",
+        "value": 52272.0
+      },
+      {
+        "assetType": "debt",
+        "assetName": "Debt Instrument 2",
+        "value": 55696.0
+      },
+      {
+        "assetType": "debt",
+        "assetName": "Debt Instrument 3",
+        "value": 70470.0
+      },
+      {
+        "assetType": "debt",
+        "assetName": "Debt Instrument 4",
+        "value": 14758.0
+      },
+      {
+        "assetType": "debt",
+        "assetName": "Debt Instrument 5",
+        "value": 39200.0
+      }
+    ]
+  },
+  {
+    "clientCode": 102,
+    "name": "Priya Verma",
+    "age": 34,
+    "occupation": "Doctor",
+    "annualIncome": 1800000.0,
+    "monthlyExpense": 90000.0,
+    "riskProfile": "moderate",
+    "investmentHorizon": "Long",
+    "emergencyFund": 300000.0,
+    "insuranceCoverage": 1500000.0,
+    "portfolioTotalValue": 13839465.79,
+    "portfolioTarget": {
+      "stock": 0.0167,
+      "mutual_fund": 0.0647,
+      "crypto": 0.8976,
+      "debt": 0.021
+    },
+    "assets": [
+      {
+        "assetType": "stock",
+        "assetName": "Stock Holding 1",
+        "value": 71094.0
+      },
+      {
+        "assetType": "stock",
+        "assetName": "Stock Holding 2",
+        "value": 66740.0
+      },
+      {
+        "assetType": "stock",
+        "assetName": "Stock Holding 3",
+        "value": 9864.0
+      },
+      {
+        "assetType": "stock",
+        "assetName": "Stock Holding 4",
+        "value": 24240.0
+      },
+      {
+        "assetType": "stock",
+        "assetName": "Stock Holding 5",
+        "value": 59319.0
+      },
+      {
+        "assetType": "mutual_fund",
+        "assetName": "Mutual Fund 1",
+        "value": 144798.0
+      },
+      {
+        "assetType": "mutual_fund",
+        "assetName": "Mutual Fund 2",
+        "value": 286296.0
+      },
+      {
+        "assetType": "mutual_fund",
+        "assetName": "Mutual Fund 3",
+        "value": 196863.0
+      },
+      {
+        "assetType": "mutual_fund",
+        "assetName": "Mutual Fund 4",
+        "value": 189560.0
+      },
+      {
+        "assetType": "mutual_fund",
+        "assetName": "Mutual Fund 5",
+        "value": 77396.0
+      },
+      {
+        "assetType": "crypto",
+        "assetName": "Crypto Asset 1",
+        "value": 3299826.6
+      },
+      {
+        "assetType": "crypto",
+        "assetName": "Crypto Asset 2",
+        "value": 4730000.66
+      },
+      {
+        "assetType": "crypto",
+        "assetName": "Crypto Asset 3",
+        "value": 2960764.87
+      },
+      {
+        "assetType": "crypto",
+        "assetName": "Crypto Asset 4",
+        "value": 833055.86
+      },
+      {
+        "assetType": "crypto",
+        "assetName": "Crypto Asset 5",
+        "value": 598397.8
+      },
+      {
+        "assetType": "debt",
+        "assetName": "Debt Instrument 1",
+        "value": 78189.0
+      },
+      {
+        "assetType": "debt",
+        "assetName": "Debt Instrument 2",
+        "value": 59568.0
+      },
+      {
+        "assetType": "debt",
+        "assetName": "Debt Instrument 3",
+        "value": 41810.0
+      },
+      {
+        "assetType": "debt",
+        "assetName": "Debt Instrument 4",
+        "value": 45016.0
+      },
+      {
+        "assetType": "debt",
+        "assetName": "Debt Instrument 5",
+        "value": 66667.0
+      }
+    ]
+  },
+  {
+    "clientCode": 103,
+    "name": "Amit Patel",
+    "age": 37,
+    "occupation": "Business Owner",
+    "annualIncome": 1500000.0,
+    "monthlyExpense": 75000.0,
+    "riskProfile": "passive",
+    "investmentHorizon": "Medium",
+    "emergencyFund": 180000.0,
+    "insuranceCoverage": 800000.0,
+    "portfolioTotalValue": 11530388.44,
+    "portfolioTarget": {
+      "stock": 0.0139,
+      "mutual_fund": 0.0612,
+      "crypto": 0.9112,
+      "debt": 0.0136
+    },
+    "assets": [
+      {
+        "assetType": "stock",
+        "assetName": "Stock Holding 1",
+        "value": 25200.0
+      },
+      {
+        "assetType": "stock",
+        "assetName": "Stock Holding 2",
+        "value": 23688.0
+      },
+      {
+        "assetType": "stock",
+        "assetName": "Stock Holding 3",
+        "value": 27300.0
+      },
+      {
+        "assetType": "stock",
+        "assetName": "Stock Holding 4",
+        "value": 42875.0
+      },
+      {
+        "assetType": "stock",
+        "assetName": "Stock Holding 5",
+        "value": 41526.0
+      },
+      {
+        "assetType": "mutual_fund",
+        "assetName": "Mutual Fund 1",
+        "value": 132077.0
+      },
+      {
+        "assetType": "mutual_fund",
+        "assetName": "Mutual Fund 2",
+        "value": 212081.0
+      },
+      {
+        "assetType": "mutual_fund",
+        "assetName": "Mutual Fund 3",
+        "value": 80532.0
+      },
+      {
+        "assetType": "mutual_fund",
+        "assetName": "Mutual Fund 4",
+        "value": 132386.0
+      },
+      {
+        "assetType": "mutual_fund",
+        "assetName": "Mutual Fund 5",
+        "value": 148541.0
+      },
+      {
+        "assetType": "crypto",
+        "assetName": "Crypto Asset 1",
+        "value": 1556749.02
+      },
+      {
+        "assetType": "crypto",
+        "assetName": "Crypto Asset 2",
+        "value": 262729.34
+      },
+      {
+        "assetType": "crypto",
+        "assetName": "Crypto Asset 3",
+        "value": 492932.22
+      },
+      {
+        "assetType": "crypto",
+        "assetName": "Crypto Asset 4",
+        "value": 3737625.5
+      },
+      {
+        "assetType": "crypto",
+        "assetName": "Crypto Asset 5",
+        "value": 4456911.36
+      },
+      {
+        "assetType": "debt",
+        "assetName": "Debt Instrument 1",
+        "value": 52200.0
+      },
+      {
+        "assetType": "debt",
+        "assetName": "Debt Instrument 2",
+        "value": 17920.0
+      },
+      {
+        "assetType": "debt",
+        "assetName": "Debt Instrument 3",
+        "value": 28461.0
+      },
+      {
+        "assetType": "debt",
+        "assetName": "Debt Instrument 4",
+        "value": 33370.0
+      },
+      {
+        "assetType": "debt",
+        "assetName": "Debt Instrument 5",
+        "value": 25284.0
+      }
+    ]
+  },
+  {
+    "clientCode": 104,
+    "name": "Sneha Iyer",
+    "age": 29,
+    "occupation": "Designer",
+    "annualIncome": 900000.0,
+    "monthlyExpense": 45000.0,
+    "riskProfile": "moderate",
+    "investmentHorizon": "Long",
+    "emergencyFund": 120000.0,
+    "insuranceCoverage": 600000.0,
+    "portfolioTotalValue": 8814270.9,
+    "portfolioTarget": {
+      "stock": 0.0259,
+      "mutual_fund": 0.0954,
+      "crypto": 0.8483,
+      "debt": 0.0303
+    },
+    "assets": [
+      {
+        "assetType": "stock",
+        "assetName": "Stock Holding 1",
+        "value": 79155.0
+      },
+      {
+        "assetType": "stock",
+        "assetName": "Stock Holding 2",
+        "value": 16534.0
+      },
+      {
+        "assetType": "stock",
+        "assetName": "Stock Holding 3",
+        "value": 17472.0
+      },
+      {
+        "assetType": "stock",
+        "assetName": "Stock Holding 4",
+        "value": 22416.0
+      },
+      {
+        "assetType": "stock",
+        "assetName": "Stock Holding 5",
+        "value": 92579.0
+      },
+      {
+        "assetType": "mutual_fund",
+        "assetName": "Mutual Fund 1",
+        "value": 118723.0
+      },
+      {
+        "assetType": "mutual_fund",
+        "assetName": "Mutual Fund 2",
+        "value": 158094.0
+      },
+      {
+        "assetType": "mutual_fund",
+        "assetName": "Mutual Fund 3",
+        "value": 296411.0
+      },
+      {
+        "assetType": "mutual_fund",
+        "assetName": "Mutual Fund 4",
+        "value": 135974.0
+      },
+      {
+        "assetType": "mutual_fund",
+        "assetName": "Mutual Fund 5",
+        "value": 132039.0
+      },
+      {
+        "assetType": "crypto",
+        "assetName": "Crypto Asset 1",
+        "value": 900421.2
+      },
+      {
+        "assetType": "crypto",
+        "assetName": "Crypto Asset 2",
+        "value": 4229822.9
+      },
+      {
+        "assetType": "crypto",
+        "assetName": "Crypto Asset 3",
+        "value": 259017.0
+      },
+      {
+        "assetType": "crypto",
+        "assetName": "Crypto Asset 4",
+        "value": 1335544.0
+      },
+      {
+        "assetType": "crypto",
+        "assetName": "Crypto Asset 5",
+        "value": 752616.8
+      },
+      {
+        "assetType": "debt",
+        "assetName": "Debt Instrument 1",
+        "value": 67536.0
+      },
+      {
+        "assetType": "debt",
+        "assetName": "Debt Instrument 2",
+        "value": 7062.0
+      },
+      {
+        "assetType": "debt",
+        "assetName": "Debt Instrument 3",
+        "value": 60006.0
+      },
+      {
+        "assetType": "debt",
+        "assetName": "Debt Instrument 4",
+        "value": 73500.0
+      },
+      {
+        "assetType": "debt",
+        "assetName": "Debt Instrument 5",
+        "value": 59348.0
+      }
+    ]
+  },
+  {
+    "clientCode": 105,
+    "name": "Arjun Singh",
+    "age": 33,
+    "occupation": "Data Analyst",
+    "annualIncome": 1100000.0,
+    "monthlyExpense": 55000.0,
+    "riskProfile": "aggressive",
+    "investmentHorizon": "Long",
+    "emergencyFund": 150000.0,
+    "insuranceCoverage": 900000.0,
+    "portfolioTotalValue": 9398464.42,
+    "portfolioTarget": {
+      "stock": 0.0263,
+      "mutual_fund": 0.0776,
+      "crypto": 0.8743,
+      "debt": 0.0218
+    },
+    "assets": [
+      {
+        "assetType": "stock",
+        "assetName": "Stock Holding 1",
+        "value": 53613.0
+      },
+      {
+        "assetType": "stock",
+        "assetName": "Stock Holding 2",
+        "value": 77952.0
+      },
+      {
+        "assetType": "stock",
+        "assetName": "Stock Holding 3",
+        "value": 34944.0
+      },
+      {
+        "assetType": "stock",
+        "assetName": "Stock Holding 4",
+        "value": 33782.0
+      },
+      {
+        "assetType": "stock",
+        "assetName": "Stock Holding 5",
+        "value": 47014.0
+      },
+      {
+        "assetType": "mutual_fund",
+        "assetName": "Mutual Fund 1",
+        "value": 70696.0
+      },
+      {
+        "assetType": "mutual_fund",
+        "assetName": "Mutual Fund 2",
+        "value": 99534.0
+      },
+      {
+        "assetType": "mutual_fund",
+        "assetName": "Mutual Fund 3",
+        "value": 211715.0
+      },
+      {
+        "assetType": "mutual_fund",
+        "assetName": "Mutual Fund 4",
+        "value": 168158.0
+      },
+      {
+        "assetType": "mutual_fund",
+        "assetName": "Mutual Fund 5",
+        "value": 178848.0
+      },
+      {
+        "assetType": "crypto",
+        "assetName": "Crypto Asset 1",
+        "value": 1892001.54
+      },
+      {
+        "assetType": "crypto",
+        "assetName": "Crypto Asset 2",
+        "value": 2155113.4
+      },
+      {
+        "assetType": "crypto",
+        "assetName": "Crypto Asset 3",
+        "value": 2547718.88
+      },
+      {
+        "assetType": "crypto",
+        "assetName": "Crypto Asset 4",
+        "value": 785898.29
+      },
+      {
+        "assetType": "crypto",
+        "assetName": "Crypto Asset 5",
+        "value": 836285.31
+      },
+      {
+        "assetType": "debt",
+        "assetName": "Debt Instrument 1",
+        "value": 104860.0
+      },
+      {
+        "assetType": "debt",
+        "assetName": "Debt Instrument 2",
+        "value": 8040.0
+      },
+      {
+        "assetType": "debt",
+        "assetName": "Debt Instrument 3",
+        "value": 7280.0
+      },
+      {
+        "assetType": "debt",
+        "assetName": "Debt Instrument 4",
+        "value": 63315.0
+      },
+      {
+        "assetType": "debt",
+        "assetName": "Debt Instrument 5",
+        "value": 21696.0
+      }
+    ]
+  },
+  {
+    "clientCode": 106,
+    "name": "Neha Kapoor",
+    "age": 35,
+    "occupation": "Teacher",
+    "annualIncome": 700000.0,
+    "monthlyExpense": 35000.0,
+    "riskProfile": "passive",
+    "investmentHorizon": "Medium",
+    "emergencyFund": 100000.0,
+    "insuranceCoverage": 500000.0,
+    "portfolioTotalValue": 12358533.49,
+    "portfolioTarget": {
+      "stock": 0.0161,
+      "mutual_fund": 0.0684,
+      "crypto": 0.9025,
+      "debt": 0.0131
+    },
+    "assets": [
+      {
+        "assetType": "stock",
+        "assetName": "Stock Holding 1",
+        "value": 67296.0
+      },
+      {
+        "assetType": "stock",
+        "assetName": "Stock Holding 2",
+        "value": 16180.0
+      },
+      {
+        "assetType": "stock",
+        "assetName": "Stock Holding 3",
+        "value": 40610.0
+      },
+      {
+        "assetType": "stock",
+        "assetName": "Stock Holding 4",
+        "value": 31866.0
+      },
+      {
+        "assetType": "stock",
+        "assetName": "Stock Holding 5",
+        "value": 42900.0
+      },
+      {
+        "assetType": "mutual_fund",
+        "assetName": "Mutual Fund 1",
+        "value": 133115.0
+      },
+      {
+        "assetType": "mutual_fund",
+        "assetName": "Mutual Fund 2",
+        "value": 264872.0
+      },
+      {
+        "assetType": "mutual_fund",
+        "assetName": "Mutual Fund 3",
+        "value": 171671.0
+      },
+      {
+        "assetType": "mutual_fund",
+        "assetName": "Mutual Fund 4",
+        "value": 137583.0
+      },
+      {
+        "assetType": "mutual_fund",
+        "assetName": "Mutual Fund 5",
+        "value": 137643.0
+      },
+      {
+        "assetType": "crypto",
+        "assetName": "Crypto Asset 1",
+        "value": 3825610.16
+      },
+      {
+        "assetType": "crypto",
+        "assetName": "Crypto Asset 2",
+        "value": 245406.24
+      },
+      {
+        "assetType": "crypto",
+        "assetName": "Crypto Asset 3",
+        "value": 3667998.25
+      },
+      {
+        "assetType": "crypto",
+        "assetName": "Crypto Asset 4",
+        "value": 463866.0
+      },
+      {
+        "assetType": "crypto",
+        "assetName": "Crypto Asset 5",
+        "value": 2950115.84
+      },
+      {
+        "assetType": "debt",
+        "assetName": "Debt Instrument 1",
+        "value": 15456.0
+      },
+      {
+        "assetType": "debt",
+        "assetName": "Debt Instrument 2",
+        "value": 33108.0
+      },
+      {
+        "assetType": "debt",
+        "assetName": "Debt Instrument 3",
+        "value": 39006.0
+      },
+      {
+        "assetType": "debt",
+        "assetName": "Debt Instrument 4",
+        "value": 65527.0
+      },
+      {
+        "assetType": "debt",
+        "assetName": "Debt Instrument 5",
+        "value": 8704.0
+      }
+    ]
+  },
+  {
+    "clientCode": 107,
+    "name": "Rohan Das",
+    "age": 32,
+    "occupation": "Marketing Manager",
+    "annualIncome": 1000000.0,
+    "monthlyExpense": 50000.0,
+    "riskProfile": "moderate",
+    "investmentHorizon": "Medium",
+    "emergencyFund": 130000.0,
+    "insuranceCoverage": 700000.0,
+    "portfolioTotalValue": 11927102.21,
+    "portfolioTarget": {
+      "stock": 0.0185,
+      "mutual_fund": 0.075,
+      "crypto": 0.8853,
+      "debt": 0.0212
+    },
+    "assets": [
+      {
+        "assetType": "stock",
+        "assetName": "Stock Holding 1",
+        "value": 22500.0
+      },
+      {
+        "assetType": "stock",
+        "assetName": "Stock Holding 2",
+        "value": 9240.0
+      },
+      {
+        "assetType": "stock",
+        "assetName": "Stock Holding 3",
+        "value": 8760.0
+      },
+      {
+        "assetType": "stock",
+        "assetName": "Stock Holding 4",
+        "value": 80206.0
+      },
+      {
+        "assetType": "stock",
+        "assetName": "Stock Holding 5",
+        "value": 99406.0
+      },
+      {
+        "assetType": "mutual_fund",
+        "assetName": "Mutual Fund 1",
+        "value": 186427.0
+      },
+      {
+        "assetType": "mutual_fund",
+        "assetName": "Mutual Fund 2",
+        "value": 188876.0
+      },
+      {
+        "assetType": "mutual_fund",
+        "assetName": "Mutual Fund 3",
+        "value": 167823.0
+      },
+      {
+        "assetType": "mutual_fund",
+        "assetName": "Mutual Fund 4",
+        "value": 178782.0
+      },
+      {
+        "assetType": "mutual_fund",
+        "assetName": "Mutual Fund 5",
+        "value": 173112.0
+      },
+      {
+        "assetType": "crypto",
+        "assetName": "Crypto Asset 1",
+        "value": 2238678.49
+      },
+      {
+        "assetType": "crypto",
+        "assetName": "Crypto Asset 2",
+        "value": 1290565.12
+      },
+      {
+        "assetType": "crypto",
+        "assetName": "Crypto Asset 3",
+        "value": 432282.7
+      },
+      {
+        "assetType": "crypto",
+        "assetName": "Crypto Asset 4",
+        "value": 4229328.84
+      },
+      {
+        "assetType": "crypto",
+        "assetName": "Crypto Asset 5",
+        "value": 2368224.06
+      },
+      {
+        "assetType": "debt",
+        "assetName": "Debt Instrument 1",
+        "value": 43834.0
+      },
+      {
+        "assetType": "debt",
+        "assetName": "Debt Instrument 2",
+        "value": 81270.0
+      },
+      {
+        "assetType": "debt",
+        "assetName": "Debt Instrument 3",
+        "value": 22428.0
+      },
+      {
+        "assetType": "debt",
+        "assetName": "Debt Instrument 4",
+        "value": 41283.0
+      },
+      {
+        "assetType": "debt",
+        "assetName": "Debt Instrument 5",
+        "value": 64076.0
+      }
+    ]
+  },
+  {
+    "clientCode": 108,
+    "name": "Kavya Nair",
+    "age": 28,
+    "occupation": "Startup Founder",
+    "annualIncome": 1300000.0,
+    "monthlyExpense": 65000.0,
+    "riskProfile": "aggressive",
+    "investmentHorizon": "Long",
+    "emergencyFund": 200000.0,
+    "insuranceCoverage": 900000.0,
+    "portfolioTotalValue": 12102267.28,
+    "portfolioTarget": {
+      "stock": 0.0224,
+      "mutual_fund": 0.076,
+      "crypto": 0.8831,
+      "debt": 0.0185
+    },
+    "assets": [
+      {
+        "assetType": "stock",
+        "assetName": "Stock Holding 1",
+        "value": 86326.0
+      },
+      {
+        "assetType": "stock",
+        "assetName": "Stock Holding 2",
+        "value": 33524.0
+      },
+      {
+        "assetType": "stock",
+        "assetName": "Stock Holding 3",
+        "value": 54243.0
+      },
+      {
+        "assetType": "stock",
+        "assetName": "Stock Holding 4",
+        "value": 22134.0
+      },
+      {
+        "assetType": "stock",
+        "assetName": "Stock Holding 5",
+        "value": 74690.0
+      },
+      {
+        "assetType": "mutual_fund",
+        "assetName": "Mutual Fund 1",
+        "value": 154700.0
+      },
+      {
+        "assetType": "mutual_fund",
+        "assetName": "Mutual Fund 2",
+        "value": 181453.0
+      },
+      {
+        "assetType": "mutual_fund",
+        "assetName": "Mutual Fund 3",
+        "value": 92323.0
+      },
+      {
+        "assetType": "mutual_fund",
+        "assetName": "Mutual Fund 4",
+        "value": 211151.0
+      },
+      {
+        "assetType": "mutual_fund",
+        "assetName": "Mutual Fund 5",
+        "value": 280630.0
+      },
+      {
+        "assetType": "crypto",
+        "assetName": "Crypto Asset 1",
+        "value": 3384332.16
+      },
+      {
+        "assetType": "crypto",
+        "assetName": "Crypto Asset 2",
+        "value": 2167569.8
+      },
+      {
+        "assetType": "crypto",
+        "assetName": "Crypto Asset 3",
+        "value": 2936888.01
+      },
+      {
+        "assetType": "crypto",
+        "assetName": "Crypto Asset 4",
+        "value": 960849.68
+      },
+      {
+        "assetType": "crypto",
+        "assetName": "Crypto Asset 5",
+        "value": 1237833.63
+      },
+      {
+        "assetType": "debt",
+        "assetName": "Debt Instrument 1",
+        "value": 63468.0
+      },
+      {
+        "assetType": "debt",
+        "assetName": "Debt Instrument 2",
+        "value": 15288.0
+      },
+      {
+        "assetType": "debt",
+        "assetName": "Debt Instrument 3",
+        "value": 75050.0
+      },
+      {
+        "assetType": "debt",
+        "assetName": "Debt Instrument 4",
+        "value": 44308.0
+      },
+      {
+        "assetType": "debt",
+        "assetName": "Debt Instrument 5",
+        "value": 25506.0
+      }
+    ]
+  },
+  {
+    "clientCode": 109,
+    "name": "Vikram Rao",
+    "age": 38,
+    "occupation": "Architect",
+    "annualIncome": 1400000.0,
+    "monthlyExpense": 70000.0,
+    "riskProfile": "moderate",
+    "investmentHorizon": "Long",
+    "emergencyFund": 220000.0,
+    "insuranceCoverage": 1000000.0,
+    "portfolioTotalValue": 8333115.16,
+    "portfolioTarget": {
+      "stock": 0.0378,
+      "mutual_fund": 0.123,
+      "crypto": 0.8095,
+      "debt": 0.0297
+    },
+    "assets": [
+      {
+        "assetType": "stock",
+        "assetName": "Stock Holding 1",
+        "value": 12834.0
+      },
+      {
+        "assetType": "stock",
+        "assetName": "Stock Holding 2",
+        "value": 119040.0
+      },
+      {
+        "assetType": "stock",
+        "assetName": "Stock Holding 3",
+        "value": 36499.0
+      },
+      {
+        "assetType": "stock",
+        "assetName": "Stock Holding 4",
+        "value": 36768.0
+      },
+      {
+        "assetType": "stock",
+        "assetName": "Stock Holding 5",
+        "value": 109450.0
+      },
+      {
+        "assetType": "mutual_fund",
+        "assetName": "Mutual Fund 1",
+        "value": 170032.0
+      },
+      {
+        "assetType": "mutual_fund",
+        "assetName": "Mutual Fund 2",
+        "value": 237834.0
+      },
+      {
+        "assetType": "mutual_fund",
+        "assetName": "Mutual Fund 3",
+        "value": 288301.0
+      },
+      {
+        "assetType": "mutual_fund",
+        "assetName": "Mutual Fund 4",
+        "value": 68370.0
+      },
+      {
+        "assetType": "mutual_fund",
+        "assetName": "Mutual Fund 5",
+        "value": 260623.0
+      },
+      {
+        "assetType": "crypto",
+        "assetName": "Crypto Asset 1",
+        "value": 1145164.68
+      },
+      {
+        "assetType": "crypto",
+        "assetName": "Crypto Asset 2",
+        "value": 906637.82
+      },
+      {
+        "assetType": "crypto",
+        "assetName": "Crypto Asset 3",
+        "value": 1002732.14
+      },
+      {
+        "assetType": "crypto",
+        "assetName": "Crypto Asset 4",
+        "value": 1218911.54
+      },
+      {
+        "assetType": "crypto",
+        "assetName": "Crypto Asset 5",
+        "value": 2472076.98
+      },
+      {
+        "assetType": "debt",
+        "assetName": "Debt Instrument 1",
+        "value": 57152.0
+      },
+      {
+        "assetType": "debt",
+        "assetName": "Debt Instrument 2",
+        "value": 31584.0
+      },
+      {
+        "assetType": "debt",
+        "assetName": "Debt Instrument 3",
+        "value": 29340.0
+      },
+      {
+        "assetType": "debt",
+        "assetName": "Debt Instrument 4",
+        "value": 34799.0
+      },
+      {
+        "assetType": "debt",
+        "assetName": "Debt Instrument 5",
+        "value": 94966.0
+      }
+    ]
+  },
+  {
+    "clientCode": 110,
+    "name": "Anjali Mehta",
+    "age": 34,
+    "occupation": "HR Manager",
+    "annualIncome": 800000.0,
+    "monthlyExpense": 40000.0,
+    "riskProfile": "passive",
+    "investmentHorizon": "Medium",
+    "emergencyFund": 110000.0,
+    "insuranceCoverage": 600000.0,
+    "portfolioTotalValue": 13890130.5,
+    "portfolioTarget": {
+      "stock": 0.0215,
+      "mutual_fund": 0.0655,
+      "crypto": 0.9019,
+      "debt": 0.0111
+    },
+    "assets": [
+      {
+        "assetType": "stock",
+        "assetName": "Stock Holding 1",
+        "value": 51658.0
+      },
+      {
+        "assetType": "stock",
+        "assetName": "Stock Holding 2",
+        "value": 13545.0
+      },
+      {
+        "assetType": "stock",
+        "assetName": "Stock Holding 3",
+        "value": 48843.0
+      },
+      {
+        "assetType": "stock",
+        "assetName": "Stock Holding 4",
+        "value": 121680.0
+      },
+      {
+        "assetType": "stock",
+        "assetName": "Stock Holding 5",
+        "value": 62671.0
+      },
+      {
+        "assetType": "mutual_fund",
+        "assetName": "Mutual Fund 1",
+        "value": 277540.0
+      },
+      {
+        "assetType": "mutual_fund",
+        "assetName": "Mutual Fund 2",
+        "value": 109525.0
+      },
+      {
+        "assetType": "mutual_fund",
+        "assetName": "Mutual Fund 3",
+        "value": 282612.0
+      },
+      {
+        "assetType": "mutual_fund",
+        "assetName": "Mutual Fund 4",
+        "value": 82844.0
+      },
+      {
+        "assetType": "mutual_fund",
+        "assetName": "Mutual Fund 5",
+        "value": 156853.0
+      },
+      {
+        "assetType": "crypto",
+        "assetName": "Crypto Asset 1",
+        "value": 1539905.22
+      },
+      {
+        "assetType": "crypto",
+        "assetName": "Crypto Asset 2",
+        "value": 5712563.08
+      },
+      {
+        "assetType": "crypto",
+        "assetName": "Crypto Asset 3",
+        "value": 1643279.0
+      },
+      {
+        "assetType": "crypto",
+        "assetName": "Crypto Asset 4",
+        "value": 692185.2
+      },
+      {
+        "assetType": "crypto",
+        "assetName": "Crypto Asset 5",
+        "value": 2939685.0
+      },
+      {
+        "assetType": "debt",
+        "assetName": "Debt Instrument 1",
+        "value": 24696.0
+      },
+      {
+        "assetType": "debt",
+        "assetName": "Debt Instrument 2",
+        "value": 61640.0
+      },
+      {
+        "assetType": "debt",
+        "assetName": "Debt Instrument 3",
+        "value": 43875.0
+      },
+      {
+        "assetType": "debt",
+        "assetName": "Debt Instrument 4",
+        "value": 18690.0
+      },
+      {
+        "assetType": "debt",
+        "assetName": "Debt Instrument 5",
+        "value": 5841.0
+      }
+    ]
+  },
+  {
+    "clientCode": 111,
+    "name": "Suresh Kumar",
+    "age": 41,
+    "occupation": "Accountant",
+    "annualIncome": 950000.0,
+    "monthlyExpense": 47500.0,
+    "riskProfile": "moderate",
+    "investmentHorizon": "Short",
+    "emergencyFund": 130000.0,
+    "insuranceCoverage": 700000.0,
+    "portfolioTotalValue": 10342695.93,
+    "portfolioTarget": {
+      "stock": 0.0174,
+      "mutual_fund": 0.1274,
+      "crypto": 0.8316,
+      "debt": 0.0236
+    },
+    "assets": [
+      {
+        "assetType": "stock",
+        "assetName": "Stock Holding 1",
+        "value": 31713.0
+      },
+      {
+        "assetType": "stock",
+        "assetName": "Stock Holding 2",
+        "value": 54124.0
+      },
+      {
+        "assetType": "stock",
+        "assetName": "Stock Holding 3",
+        "value": 24640.0
+      },
+      {
+        "assetType": "stock",
+        "assetName": "Stock Holding 4",
+        "value": 56375.0
+      },
+      {
+        "assetType": "stock",
+        "assetName": "Stock Holding 5",
+        "value": 13536.0
+      },
+      {
+        "assetType": "mutual_fund",
+        "assetName": "Mutual Fund 1",
+        "value": 266016.0
+      },
+      {
+        "assetType": "mutual_fund",
+        "assetName": "Mutual Fund 2",
+        "value": 286752.0
+      },
+      {
+        "assetType": "mutual_fund",
+        "assetName": "Mutual Fund 3",
+        "value": 198380.0
+      },
+      {
+        "assetType": "mutual_fund",
+        "assetName": "Mutual Fund 4",
+        "value": 294930.0
+      },
+      {
+        "assetType": "mutual_fund",
+        "assetName": "Mutual Fund 5",
+        "value": 271398.0
+      },
+      {
+        "assetType": "crypto",
+        "assetName": "Crypto Asset 1",
+        "value": 1346634.88
+      },
+      {
+        "assetType": "crypto",
+        "assetName": "Crypto Asset 2",
+        "value": 1109788.68
+      },
+      {
+        "assetType": "crypto",
+        "assetName": "Crypto Asset 3",
+        "value": 128872.32
+      },
+      {
+        "assetType": "crypto",
+        "assetName": "Crypto Asset 4",
+        "value": 1869317.28
+      },
+      {
+        "assetType": "crypto",
+        "assetName": "Crypto Asset 5",
+        "value": 4146151.77
+      },
+      {
+        "assetType": "debt",
+        "assetName": "Debt Instrument 1",
+        "value": 94185.0
+      },
+      {
+        "assetType": "debt",
+        "assetName": "Debt Instrument 2",
+        "value": 12576.0
+      },
+      {
+        "assetType": "debt",
+        "assetName": "Debt Instrument 3",
+        "value": 32190.0
+      },
+      {
+        "assetType": "debt",
+        "assetName": "Debt Instrument 4",
+        "value": 47094.0
+      },
+      {
+        "assetType": "debt",
+        "assetName": "Debt Instrument 5",
+        "value": 58022.0
+      }
+    ]
+  },
+  {
+    "clientCode": 112,
+    "name": "Pooja Gupta",
+    "age": 32,
+    "occupation": "Consultant",
+    "annualIncome": 1250000.0,
+    "monthlyExpense": 62500.0,
+    "riskProfile": "aggressive",
+    "investmentHorizon": "Long",
+    "emergencyFund": 180000.0,
+    "insuranceCoverage": 900000.0,
+    "portfolioTotalValue": 10003660.05,
+    "portfolioTarget": {
+      "stock": 0.0323,
+      "mutual_fund": 0.0941,
+      "crypto": 0.8563,
+      "debt": 0.0173
+    },
+    "assets": [
+      {
+        "assetType": "stock",
+        "assetName": "Stock Holding 1",
+        "value": 76473.0
+      },
+      {
+        "assetType": "stock",
+        "assetName": "Stock Holding 2",
+        "value": 33936.0
+      },
+      {
+        "assetType": "stock",
+        "assetName": "Stock Holding 3",
+        "value": 24510.0
+      },
+      {
+        "assetType": "stock",
+        "assetName": "Stock Holding 4",
+        "value": 118096.0
+      },
+      {
+        "assetType": "stock",
+        "assetName": "Stock Holding 5",
+        "value": 69950.0
+      },
+      {
+        "assetType": "mutual_fund",
+        "assetName": "Mutual Fund 1",
+        "value": 110065.0
+      },
+      {
+        "assetType": "mutual_fund",
+        "assetName": "Mutual Fund 2",
+        "value": 225173.0
+      },
+      {
+        "assetType": "mutual_fund",
+        "assetName": "Mutual Fund 3",
+        "value": 294341.0
+      },
+      {
+        "assetType": "mutual_fund",
+        "assetName": "Mutual Fund 4",
+        "value": 227883.0
+      },
+      {
+        "assetType": "mutual_fund",
+        "assetName": "Mutual Fund 5",
+        "value": 83875.0
+      },
+      {
+        "assetType": "crypto",
+        "assetName": "Crypto Asset 1",
+        "value": 54314.35
+      },
+      {
+        "assetType": "crypto",
+        "assetName": "Crypto Asset 2",
+        "value": 1119418.78
+      },
+      {
+        "assetType": "crypto",
+        "assetName": "Crypto Asset 3",
+        "value": 1287107.8
+      },
+      {
+        "assetType": "crypto",
+        "assetName": "Crypto Asset 4",
+        "value": 1496794.32
+      },
+      {
+        "assetType": "crypto",
+        "assetName": "Crypto Asset 5",
+        "value": 4608643.8
+      },
+      {
+        "assetType": "debt",
+        "assetName": "Debt Instrument 1",
+        "value": 43750.0
+      },
+      {
+        "assetType": "debt",
+        "assetName": "Debt Instrument 2",
+        "value": 28296.0
+      },
+      {
+        "assetType": "debt",
+        "assetName": "Debt Instrument 3",
+        "value": 58200.0
+      },
+      {
+        "assetType": "debt",
+        "assetName": "Debt Instrument 4",
+        "value": 15826.0
+      },
+      {
+        "assetType": "debt",
+        "assetName": "Debt Instrument 5",
+        "value": 27007.0
+      }
+    ]
+  },
+  {
+    "clientCode": 113,
+    "name": "Manish Jain",
+    "age": 36,
+    "occupation": "Trader",
+    "annualIncome": 850000.0,
+    "monthlyExpense": 42500.0,
+    "riskProfile": "passive",
+    "investmentHorizon": "Medium",
+    "emergencyFund": 120000.0,
+    "insuranceCoverage": 600000.0,
+    "portfolioTotalValue": 12551560.46,
+    "portfolioTarget": {
+      "stock": 0.0204,
+      "mutual_fund": 0.0631,
+      "crypto": 0.9045,
+      "debt": 0.012
+    },
+    "assets": [
+      {
+        "assetType": "stock",
+        "assetName": "Stock Holding 1",
+        "value": 82071.0
+      },
+      {
+        "assetType": "stock",
+        "assetName": "Stock Holding 2",
+        "value": 24612.0
+      },
+      {
+        "assetType": "stock",
+        "assetName": "Stock Holding 3",
+        "value": 109434.0
+      },
+      {
+        "assetType": "stock",
+        "assetName": "Stock Holding 4",
+        "value": 22437.0
+      },
+      {
+        "assetType": "stock",
+        "assetName": "Stock Holding 5",
+        "value": 17886.0
+      },
+      {
+        "assetType": "mutual_fund",
+        "assetName": "Mutual Fund 1",
+        "value": 307227.0
+      },
+      {
+        "assetType": "mutual_fund",
+        "assetName": "Mutual Fund 2",
+        "value": 78506.0
+      },
+      {
+        "assetType": "mutual_fund",
+        "assetName": "Mutual Fund 3",
+        "value": 219567.0
+      },
+      {
+        "assetType": "mutual_fund",
+        "assetName": "Mutual Fund 4",
+        "value": 69722.0
+      },
+      {
+        "assetType": "mutual_fund",
+        "assetName": "Mutual Fund 5",
+        "value": 116913.0
+      },
+      {
+        "assetType": "crypto",
+        "assetName": "Crypto Asset 1",
+        "value": 1485886.4
+      },
+      {
+        "assetType": "crypto",
+        "assetName": "Crypto Asset 2",
+        "value": 4080417.6
+      },
+      {
+        "assetType": "crypto",
+        "assetName": "Crypto Asset 3",
+        "value": 1347209.16
+      },
+      {
+        "assetType": "crypto",
+        "assetName": "Crypto Asset 4",
+        "value": 4004239.47
+      },
+      {
+        "assetType": "crypto",
+        "assetName": "Crypto Asset 5",
+        "value": 435292.83
+      },
+      {
+        "assetType": "debt",
+        "assetName": "Debt Instrument 1",
+        "value": 47270.0
+      },
+      {
+        "assetType": "debt",
+        "assetName": "Debt Instrument 2",
+        "value": 13900.0
+      },
+      {
+        "assetType": "debt",
+        "assetName": "Debt Instrument 3",
+        "value": 21692.0
+      },
+      {
+        "assetType": "debt",
+        "assetName": "Debt Instrument 4",
+        "value": 9747.0
+      },
+      {
+        "assetType": "debt",
+        "assetName": "Debt Instrument 5",
+        "value": 57531.0
+      }
+    ]
+  },
+  {
+    "clientCode": 114,
+    "name": "Divya Reddy",
+    "age": 29,
+    "occupation": "Engineer",
+    "annualIncome": 1050000.0,
+    "monthlyExpense": 52500.0,
+    "riskProfile": "moderate",
+    "investmentHorizon": "Long",
+    "emergencyFund": 150000.0,
+    "insuranceCoverage": 800000.0,
+    "portfolioTotalValue": 10273862.37,
+    "portfolioTarget": {
+      "stock": 0.0137,
+      "mutual_fund": 0.0935,
+      "crypto": 0.8672,
+      "debt": 0.0256
+    },
+    "assets": [
+      {
+        "assetType": "stock",
+        "assetName": "Stock Holding 1",
+        "value": 12750.0
+      },
+      {
+        "assetType": "stock",
+        "assetName": "Stock Holding 2",
+        "value": 11256.0
+      },
+      {
+        "assetType": "stock",
+        "assetName": "Stock Holding 3",
+        "value": 46283.0
+      },
+      {
+        "assetType": "stock",
+        "assetName": "Stock Holding 4",
+        "value": 15606.0
+      },
+      {
+        "assetType": "stock",
+        "assetName": "Stock Holding 5",
+        "value": 54824.0
+      },
+      {
+        "assetType": "mutual_fund",
+        "assetName": "Mutual Fund 1",
+        "value": 86992.0
+      },
+      {
+        "assetType": "mutual_fund",
+        "assetName": "Mutual Fund 2",
+        "value": 186707.0
+      },
+      {
+        "assetType": "mutual_fund",
+        "assetName": "Mutual Fund 3",
+        "value": 299545.0
+      },
+      {
+        "assetType": "mutual_fund",
+        "assetName": "Mutual Fund 4",
+        "value": 250185.0
+      },
+      {
+        "assetType": "mutual_fund",
+        "assetName": "Mutual Fund 5",
+        "value": 137574.0
+      },
+      {
+        "assetType": "crypto",
+        "assetName": "Crypto Asset 1",
+        "value": 259512.0
+      },
+      {
+        "assetType": "crypto",
+        "assetName": "Crypto Asset 2",
+        "value": 3692498.0
+      },
+      {
+        "assetType": "crypto",
+        "assetName": "Crypto Asset 3",
+        "value": 3210321.8
+      },
+      {
+        "assetType": "crypto",
+        "assetName": "Crypto Asset 4",
+        "value": 1086981.57
+      },
+      {
+        "assetType": "crypto",
+        "assetName": "Crypto Asset 5",
+        "value": 660067.0
+      },
+      {
+        "assetType": "debt",
+        "assetName": "Debt Instrument 1",
+        "value": 6557.0
+      },
+      {
+        "assetType": "debt",
+        "assetName": "Debt Instrument 2",
+        "value": 78966.0
+      },
+      {
+        "assetType": "debt",
+        "assetName": "Debt Instrument 3",
+        "value": 56718.0
+      },
+      {
+        "assetType": "debt",
+        "assetName": "Debt Instrument 4",
+        "value": 64965.0
+      },
+      {
+        "assetType": "debt",
+        "assetName": "Debt Instrument 5",
+        "value": 55554.0
+      }
+    ]
+  },
+  {
+    "clientCode": 115,
+    "name": "Karan Malhotra",
+    "age": 33,
+    "occupation": "Entrepreneur",
+    "annualIncome": 2000000.0,
+    "monthlyExpense": 100000.0,
+    "riskProfile": "aggressive",
+    "investmentHorizon": "Long",
+    "emergencyFund": 350000.0,
+    "insuranceCoverage": 1500000.0,
+    "portfolioTotalValue": 10629655.58,
+    "portfolioTarget": {
+      "stock": 0.0218,
+      "mutual_fund": 0.0857,
+      "crypto": 0.873,
+      "debt": 0.0195
+    },
+    "assets": [
+      {
+        "assetType": "stock",
+        "assetName": "Stock Holding 1",
+        "value": 19840.0
+      },
+      {
+        "assetType": "stock",
+        "assetName": "Stock Holding 2",
+        "value": 101062.0
+      },
+      {
+        "assetType": "stock",
+        "assetName": "Stock Holding 3",
+        "value": 29556.0
+      },
+      {
+        "assetType": "stock",
+        "assetName": "Stock Holding 4",
+        "value": 28386.0
+      },
+      {
+        "assetType": "stock",
+        "assetName": "Stock Holding 5",
+        "value": 52394.0
+      },
+      {
+        "assetType": "mutual_fund",
+        "assetName": "Mutual Fund 1",
+        "value": 243820.0
+      },
+      {
+        "assetType": "mutual_fund",
+        "assetName": "Mutual Fund 2",
+        "value": 139924.0
+      },
+      {
+        "assetType": "mutual_fund",
+        "assetName": "Mutual Fund 3",
+        "value": 137102.0
+      },
+      {
+        "assetType": "mutual_fund",
+        "assetName": "Mutual Fund 4",
+        "value": 151620.0
+      },
+      {
+        "assetType": "mutual_fund",
+        "assetName": "Mutual Fund 5",
+        "value": 238816.0
+      },
+      {
+        "assetType": "crypto",
+        "assetName": "Crypto Asset 1",
+        "value": 99471.09
+      },
+      {
+        "assetType": "crypto",
+        "assetName": "Crypto Asset 2",
+        "value": 1679730.48
+      },
+      {
+        "assetType": "crypto",
+        "assetName": "Crypto Asset 3",
+        "value": 159360.6
+      },
+      {
+        "assetType": "crypto",
+        "assetName": "Crypto Asset 4",
+        "value": 4785185.28
+      },
+      {
+        "assetType": "crypto",
+        "assetName": "Crypto Asset 5",
+        "value": 2556076.13
+      },
+      {
+        "assetType": "debt",
+        "assetName": "Debt Instrument 1",
+        "value": 95921.0
+      },
+      {
+        "assetType": "debt",
+        "assetName": "Debt Instrument 2",
+        "value": 25559.0
+      },
+      {
+        "assetType": "debt",
+        "assetName": "Debt Instrument 3",
+        "value": 46767.0
+      },
+      {
+        "assetType": "debt",
+        "assetName": "Debt Instrument 4",
+        "value": 21527.0
+      },
+      {
+        "assetType": "debt",
+        "assetName": "Debt Instrument 5",
+        "value": 17538.0
+      }
+    ]
+  },
+  {
+    "clientCode": 116,
+    "name": "Ishita Sen",
+    "age": 30,
+    "occupation": "Writer",
+    "annualIncome": 600000.0,
+    "monthlyExpense": 30000.0,
+    "riskProfile": "passive",
+    "investmentHorizon": "Medium",
+    "emergencyFund": 90000.0,
+    "insuranceCoverage": 400000.0,
+    "portfolioTotalValue": 6155880.09,
+    "portfolioTarget": {
+      "stock": 0.0471,
+      "mutual_fund": 0.1486,
+      "crypto": 0.7773,
+      "debt": 0.027
+    },
+    "assets": [
+      {
+        "assetType": "stock",
+        "assetName": "Stock Holding 1",
+        "value": 30415.0
+      },
+      {
+        "assetType": "stock",
+        "assetName": "Stock Holding 2",
+        "value": 70200.0
+      },
+      {
+        "assetType": "stock",
+        "assetName": "Stock Holding 3",
+        "value": 22960.0
+      },
+      {
+        "assetType": "stock",
+        "assetName": "Stock Holding 4",
+        "value": 49282.0
+      },
+      {
+        "assetType": "stock",
+        "assetName": "Stock Holding 5",
+        "value": 117240.0
+      },
+      {
+        "assetType": "mutual_fund",
+        "assetName": "Mutual Fund 1",
+        "value": 212274.0
+      },
+      {
+        "assetType": "mutual_fund",
+        "assetName": "Mutual Fund 2",
+        "value": 215025.0
+      },
+      {
+        "assetType": "mutual_fund",
+        "assetName": "Mutual Fund 3",
+        "value": 61544.0
+      },
+      {
+        "assetType": "mutual_fund",
+        "assetName": "Mutual Fund 4",
+        "value": 127698.0
+      },
+      {
+        "assetType": "mutual_fund",
+        "assetName": "Mutual Fund 5",
+        "value": 298142.0
+      },
+      {
+        "assetType": "crypto",
+        "assetName": "Crypto Asset 1",
+        "value": 799952.23
+      },
+      {
+        "assetType": "crypto",
+        "assetName": "Crypto Asset 2",
+        "value": 1077501.42
+      },
+      {
+        "assetType": "crypto",
+        "assetName": "Crypto Asset 3",
+        "value": 624162.73
+      },
+      {
+        "assetType": "crypto",
+        "assetName": "Crypto Asset 4",
+        "value": 629478.0
+      },
+      {
+        "assetType": "crypto",
+        "assetName": "Crypto Asset 5",
+        "value": 1654093.71
+      },
+      {
+        "assetType": "debt",
+        "assetName": "Debt Instrument 1",
+        "value": 18590.0
+      },
+      {
+        "assetType": "debt",
+        "assetName": "Debt Instrument 2",
+        "value": 67878.0
+      },
+      {
+        "assetType": "debt",
+        "assetName": "Debt Instrument 3",
+        "value": 36380.0
+      },
+      {
+        "assetType": "debt",
+        "assetName": "Debt Instrument 4",
+        "value": 6004.0
+      },
+      {
+        "assetType": "debt",
+        "assetName": "Debt Instrument 5",
+        "value": 37060.0
+      }
+    ]
+  },
+  {
+    "clientCode": 117,
+    "name": "Aditya Joshi",
+    "age": 32,
+    "occupation": "Engineer",
+    "annualIncome": 950000.0,
+    "monthlyExpense": 47500.0,
+    "riskProfile": "moderate",
+    "investmentHorizon": "Long",
+    "emergencyFund": 130000.0,
+    "insuranceCoverage": 700000.0,
+    "portfolioTotalValue": 3595548.58,
+    "portfolioTarget": {
+      "stock": 0.0575,
+      "mutual_fund": 0.2052,
+      "crypto": 0.7003,
+      "debt": 0.0371
+    },
+    "assets": [
+      {
+        "assetType": "stock",
+        "assetName": "Stock Holding 1",
+        "value": 13100.0
+      },
+      {
+        "assetType": "stock",
+        "assetName": "Stock Holding 2",
+        "value": 78255.0
+      },
+      {
+        "assetType": "stock",
+        "assetName": "Stock Holding 3",
+        "value": 70047.0
+      },
+      {
+        "assetType": "stock",
+        "assetName": "Stock Holding 4",
+        "value": 27830.0
+      },
+      {
+        "assetType": "stock",
+        "assetName": "Stock Holding 5",
+        "value": 17352.0
+      },
+      {
+        "assetType": "mutual_fund",
+        "assetName": "Mutual Fund 1",
+        "value": 84709.0
+      },
+      {
+        "assetType": "mutual_fund",
+        "assetName": "Mutual Fund 2",
+        "value": 236762.0
+      },
+      {
+        "assetType": "mutual_fund",
+        "assetName": "Mutual Fund 3",
+        "value": 194185.0
+      },
+      {
+        "assetType": "mutual_fund",
+        "assetName": "Mutual Fund 4",
+        "value": 66517.0
+      },
+      {
+        "assetType": "mutual_fund",
+        "assetName": "Mutual Fund 5",
+        "value": 155512.0
+      },
+      {
+        "assetType": "crypto",
+        "assetName": "Crypto Asset 1",
+        "value": 171826.05
+      },
+      {
+        "assetType": "crypto",
+        "assetName": "Crypto Asset 2",
+        "value": 412962.0
+      },
+      {
+        "assetType": "crypto",
+        "assetName": "Crypto Asset 3",
+        "value": 860041.23
+      },
+      {
+        "assetType": "crypto",
+        "assetName": "Crypto Asset 4",
+        "value": 209259.05
+      },
+      {
+        "assetType": "crypto",
+        "assetName": "Crypto Asset 5",
+        "value": 863896.25
+      },
+      {
+        "assetType": "debt",
+        "assetName": "Debt Instrument 1",
+        "value": 32231.0
+      },
+      {
+        "assetType": "debt",
+        "assetName": "Debt Instrument 2",
+        "value": 59024.0
+      },
+      {
+        "assetType": "debt",
+        "assetName": "Debt Instrument 3",
+        "value": 16951.0
+      },
+      {
+        "assetType": "debt",
+        "assetName": "Debt Instrument 4",
+        "value": 12095.0
+      },
+      {
+        "assetType": "debt",
+        "assetName": "Debt Instrument 5",
+        "value": 12994.0
+      }
+    ]
+  },
+  {
+    "clientCode": 118,
+    "name": "Meera Pillai",
+    "age": 27,
+    "occupation": "Analyst",
+    "annualIncome": 1150000.0,
+    "monthlyExpense": 57500.0,
+    "riskProfile": "aggressive",
+    "investmentHorizon": "Long",
+    "emergencyFund": 170000.0,
+    "insuranceCoverage": 850000.0,
+    "portfolioTotalValue": 7444202.39,
+    "portfolioTarget": {
+      "stock": 0.032,
+      "mutual_fund": 0.1164,
+      "crypto": 0.8314,
+      "debt": 0.0201
+    },
+    "assets": [
+      {
+        "assetType": "stock",
+        "assetName": "Stock Holding 1",
+        "value": 60416.0
+      },
+      {
+        "assetType": "stock",
+        "assetName": "Stock Holding 2",
+        "value": 101900.0
+      },
+      {
+        "assetType": "stock",
+        "assetName": "Stock Holding 3",
+        "value": 21827.0
+      },
+      {
+        "assetType": "stock",
+        "assetName": "Stock Holding 4",
+        "value": 15660.0
+      },
+      {
+        "assetType": "stock",
+        "assetName": "Stock Holding 5",
+        "value": 38595.0
+      },
+      {
+        "assetType": "mutual_fund",
+        "assetName": "Mutual Fund 1",
+        "value": 177539.0
+      },
+      {
+        "assetType": "mutual_fund",
+        "assetName": "Mutual Fund 2",
+        "value": 81257.0
+      },
+      {
+        "assetType": "mutual_fund",
+        "assetName": "Mutual Fund 3",
+        "value": 274110.0
+      },
+      {
+        "assetType": "mutual_fund",
+        "assetName": "Mutual Fund 4",
+        "value": 121921.0
+      },
+      {
+        "assetType": "mutual_fund",
+        "assetName": "Mutual Fund 5",
+        "value": 211929.0
+      },
+      {
+        "assetType": "crypto",
+        "assetName": "Crypto Asset 1",
+        "value": 2131983.7
+      },
+      {
+        "assetType": "crypto",
+        "assetName": "Crypto Asset 2",
+        "value": 1057151.76
+      },
+      {
+        "assetType": "crypto",
+        "assetName": "Crypto Asset 3",
+        "value": 565911.33
+      },
+      {
+        "assetType": "crypto",
+        "assetName": "Crypto Asset 4",
+        "value": 714070.92
+      },
+      {
+        "assetType": "crypto",
+        "assetName": "Crypto Asset 5",
+        "value": 1719943.68
+      },
+      {
+        "assetType": "debt",
+        "assetName": "Debt Instrument 1",
+        "value": 34604.0
+      },
+      {
+        "assetType": "debt",
+        "assetName": "Debt Instrument 2",
+        "value": 8466.0
+      },
+      {
+        "assetType": "debt",
+        "assetName": "Debt Instrument 3",
+        "value": 16912.0
+      },
+      {
+        "assetType": "debt",
+        "assetName": "Debt Instrument 4",
+        "value": 7680.0
+      },
+      {
+        "assetType": "debt",
+        "assetName": "Debt Instrument 5",
+        "value": 82325.0
+      }
+    ]
+  },
+  {
+    "clientCode": 119,
+    "name": "Nikhil Bansal",
+    "age": 35,
+    "occupation": "Banker",
+    "annualIncome": 900000.0,
+    "monthlyExpense": 45000.0,
+    "riskProfile": "passive",
+    "investmentHorizon": "Medium",
+    "emergencyFund": 120000.0,
+    "insuranceCoverage": 650000.0,
+    "portfolioTotalValue": 7622807.72,
+    "portfolioTarget": {
+      "stock": 0.0489,
+      "mutual_fund": 0.1143,
+      "crypto": 0.8004,
+      "debt": 0.0364
+    },
+    "assets": [
+      {
+        "assetType": "stock",
+        "assetName": "Stock Holding 1",
+        "value": 100409.0
+      },
+      {
+        "assetType": "stock",
+        "assetName": "Stock Holding 2",
+        "value": 74976.0
+      },
+      {
+        "assetType": "stock",
+        "assetName": "Stock Holding 3",
+        "value": 103040.0
+      },
+      {
+        "assetType": "stock",
+        "assetName": "Stock Holding 4",
+        "value": 67775.0
+      },
+      {
+        "assetType": "stock",
+        "assetName": "Stock Holding 5",
+        "value": 26475.0
+      },
+      {
+        "assetType": "mutual_fund",
+        "assetName": "Mutual Fund 1",
+        "value": 76582.0
+      },
+      {
+        "assetType": "mutual_fund",
+        "assetName": "Mutual Fund 2",
+        "value": 171883.0
+      },
+      {
+        "assetType": "mutual_fund",
+        "assetName": "Mutual Fund 3",
+        "value": 264253.0
+      },
+      {
+        "assetType": "mutual_fund",
+        "assetName": "Mutual Fund 4",
+        "value": 206957.0
+      },
+      {
+        "assetType": "mutual_fund",
+        "assetName": "Mutual Fund 5",
+        "value": 151571.0
+      },
+      {
+        "assetType": "crypto",
+        "assetName": "Crypto Asset 1",
+        "value": 505236.96
+      },
+      {
+        "assetType": "crypto",
+        "assetName": "Crypto Asset 2",
+        "value": 308485.57
+      },
+      {
+        "assetType": "crypto",
+        "assetName": "Crypto Asset 3",
+        "value": 1937314.6
+      },
+      {
+        "assetType": "crypto",
+        "assetName": "Crypto Asset 4",
+        "value": 1156302.0
+      },
+      {
+        "assetType": "crypto",
+        "assetName": "Crypto Asset 5",
+        "value": 2194237.59
+      },
+      {
+        "assetType": "debt",
+        "assetName": "Debt Instrument 1",
+        "value": 76687.0
+      },
+      {
+        "assetType": "debt",
+        "assetName": "Debt Instrument 2",
+        "value": 29104.0
+      },
+      {
+        "assetType": "debt",
+        "assetName": "Debt Instrument 3",
+        "value": 100688.0
+      },
+      {
+        "assetType": "debt",
+        "assetName": "Debt Instrument 4",
+        "value": 21900.0
+      },
+      {
+        "assetType": "debt",
+        "assetName": "Debt Instrument 5",
+        "value": 48931.0
+      }
+    ]
+  },
+  {
+    "clientCode": 120,
+    "name": "Ritika Shah",
+    "age": 32,
+    "occupation": "CA",
+    "annualIncome": 1300000.0,
+    "monthlyExpense": 65000.0,
+    "riskProfile": "moderate",
+    "investmentHorizon": "Long",
+    "emergencyFund": 200000.0,
+    "insuranceCoverage": 900000.0,
+    "portfolioTotalValue": 11804829.87,
+    "portfolioTarget": {
+      "stock": 0.0167,
+      "mutual_fund": 0.0916,
+      "crypto": 0.877,
+      "debt": 0.0147
+    },
+    "assets": [
+      {
+        "assetType": "stock",
+        "assetName": "Stock Holding 1",
+        "value": 10616.0
+      },
+      {
+        "assetType": "stock",
+        "assetName": "Stock Holding 2",
+        "value": 48048.0
+      },
+      {
+        "assetType": "stock",
+        "assetName": "Stock Holding 3",
+        "value": 66563.0
+      },
+      {
+        "assetType": "stock",
+        "assetName": "Stock Holding 4",
+        "value": 8785.0
+      },
+      {
+        "assetType": "stock",
+        "assetName": "Stock Holding 5",
+        "value": 62964.0
+      },
+      {
+        "assetType": "mutual_fund",
+        "assetName": "Mutual Fund 1",
+        "value": 213456.0
+      },
+      {
+        "assetType": "mutual_fund",
+        "assetName": "Mutual Fund 2",
+        "value": 152501.0
+      },
+      {
+        "assetType": "mutual_fund",
+        "assetName": "Mutual Fund 3",
+        "value": 296265.0
+      },
+      {
+        "assetType": "mutual_fund",
+        "assetName": "Mutual Fund 4",
+        "value": 159255.0
+      },
+      {
+        "assetType": "mutual_fund",
+        "assetName": "Mutual Fund 5",
+        "value": 259564.0
+      },
+      {
+        "assetType": "crypto",
+        "assetName": "Crypto Asset 1",
+        "value": 662372.53
+      },
+      {
+        "assetType": "crypto",
+        "assetName": "Crypto Asset 2",
+        "value": 1912168.7
+      },
+      {
+        "assetType": "crypto",
+        "assetName": "Crypto Asset 3",
+        "value": 1874713.0
+      },
+      {
+        "assetType": "crypto",
+        "assetName": "Crypto Asset 4",
+        "value": 1076234.44
+      },
+      {
+        "assetType": "crypto",
+        "assetName": "Crypto Asset 5",
+        "value": 4827756.2
+      },
+      {
+        "assetType": "debt",
+        "assetName": "Debt Instrument 1",
+        "value": 15120.0
+      },
+      {
+        "assetType": "debt",
+        "assetName": "Debt Instrument 2",
+        "value": 43152.0
+      },
+      {
+        "assetType": "debt",
+        "assetName": "Debt Instrument 3",
+        "value": 34350.0
+      },
+      {
+        "assetType": "debt",
+        "assetName": "Debt Instrument 4",
+        "value": 56166.0
+      },
+      {
+        "assetType": "debt",
+        "assetName": "Debt Instrument 5",
+        "value": 24780.0
+      }
+    ]
+  }
+]
