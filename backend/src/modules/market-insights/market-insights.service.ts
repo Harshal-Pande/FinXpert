@@ -29,23 +29,19 @@ export class MarketInsightsService {
     );
 
     // 2. Find clients who have crypto assets with value > 100,000
-    const cryptoAssetsOver100k = await this.prisma.asset.findMany({
+    const cryptoAssetsOver100k = await this.prisma.investment.findMany({
       where: {
-        asset_type: 'crypto',
-        value: { gt: 100_000 },
+        investment_type: 'Crypto',
+        total_value: { gt: 100_000 },
       },
       include: {
-        portfolio: {
-          include: {
-            client: true,
-          },
-        },
+        client: true,
       },
     });
 
     const affectedClientNames = [
       ...new Set(
-        cryptoAssetsOver100k.map((a) => a.portfolio.client.name),
+        cryptoAssetsOver100k.map((investment) => investment.client.name),
       ),
     ];
 

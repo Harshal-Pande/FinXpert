@@ -1,10 +1,13 @@
 import { apiClient } from './client';
 
-export interface PortfolioAsset {
+export interface Investment {
   id: string;
-  asset_name: string; // Match Prisma schema
-  asset_type: string; // Match Prisma schema
-  value: number;
+  investment_type: 'Stock' | 'Crypto' | 'Debt' | 'Mutual_Fund';
+  instrument_name: string;
+  quantity: number;
+  buy_rate: number;
+  total_value: number;
+  bought_at: string;
 }
 
 export interface Client {
@@ -18,11 +21,7 @@ export interface Client {
   emergency_fund?: number | null;
   insurance_coverage?: number | null;
   investment_horizon?: string | null;
-  portfolio?: {
-    id: string;
-    total_value: number;
-    assets: PortfolioAsset[];
-  };
+  investments?: Investment[];
   healthScores?: { score: number; calculated_at: string }[];
 }
 

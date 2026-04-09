@@ -103,11 +103,11 @@ export default function ClientDetailPage() {
     );
   }
 
-  const allAssets = client!.portfolio?.assets ?? [];
-  const stockAssets = allAssets.filter((a) => a.asset_type === 'stock');
-  const debtAssets = allAssets.filter((a) => a.asset_type === 'debt');
-  const cryptoAssets = allAssets.filter((a) => a.asset_type === 'crypto');
-  const mutualFundAssets = allAssets.filter((a) => a.asset_type === 'mutual_fund');
+  const allAssets = client!.investments ?? [];
+  const stockAssets = allAssets.filter((a) => a.investment_type === 'Stock');
+  const debtAssets = allAssets.filter((a) => a.investment_type === 'Debt');
+  const cryptoAssets = allAssets.filter((a) => a.investment_type === 'Crypto');
+  const mutualFundAssets = allAssets.filter((a) => a.investment_type === 'Mutual_Fund');
 
   const renderActiveTabData = () => {
     let assets = stockAssets;
@@ -123,8 +123,8 @@ export default function ClientDetailPage() {
       <div className="mt-4 pt-4 border-t border-dashed border-slate-300">
         {assets.map((asset) => (
           <div key={asset.id} className="flex justify-between py-1 text-sm">
-            <span className="font-medium text-slate-700">{asset.asset_name}</span>
-            <span className="text-slate-900">{formatInr(asset.value)}</span>
+            <span className="font-medium text-slate-700">{asset.instrument_name}</span>
+            <span className="text-slate-900">{formatInr(asset.total_value)}</span>
           </div>
         ))}
       </div>
@@ -203,7 +203,7 @@ export default function ClientDetailPage() {
               Stock
             </div>
             <div className="mt-8 text-center text-xl font-bold font-mono">
-              {formatInr(stockAssets.reduce((sum, a) => sum + a.value, 0))}
+              {formatInr(stockAssets.reduce((sum, a) => sum + a.total_value, 0))}
             </div>
             {activeTab === 'stock' && renderActiveTabData()}
           </div>
@@ -216,7 +216,7 @@ export default function ClientDetailPage() {
               Debt
             </div>
             <div className="mt-8 text-center text-xl font-bold font-mono">
-              {formatInr(debtAssets.reduce((sum, a) => sum + a.value, 0))}
+              {formatInr(debtAssets.reduce((sum, a) => sum + a.total_value, 0))}
             </div>
             {activeTab === 'debt' && renderActiveTabData()}
           </div>
@@ -229,7 +229,7 @@ export default function ClientDetailPage() {
               Crypto
             </div>
             <div className="mt-8 text-center text-xl font-bold font-mono">
-              {formatInr(cryptoAssets.reduce((sum, a) => sum + a.value, 0))}
+              {formatInr(cryptoAssets.reduce((sum, a) => sum + a.total_value, 0))}
             </div>
             {activeTab === 'crypto' && renderActiveTabData()}
           </div>
@@ -242,7 +242,7 @@ export default function ClientDetailPage() {
               Mutual Fund
             </div>
             <div className="mt-8 text-center text-xl font-bold font-mono">
-              {formatInr(mutualFundAssets.reduce((sum, a) => sum + a.value, 0))}
+              {formatInr(mutualFundAssets.reduce((sum, a) => sum + a.total_value, 0))}
             </div>
             {activeTab === 'mutual_fund' && renderActiveTabData()}
           </div>

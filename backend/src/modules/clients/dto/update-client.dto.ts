@@ -42,10 +42,10 @@ export class UpdateClientDto {
   insurance_coverage?: number;
 
   @IsOptional()
-  @IsIn(['conservative', 'moderate', 'aggressive'])
+  @IsIn(['conservative', 'moderate', 'aggressive', 'passive'])
   risk_profile?: string;
 
   @IsOptional()
-  @IsIn(['short', 'medium', 'long'])
+  @IsIn(['short', 'medium', 'long', 'Short', 'Medium', 'Long'])
   investment_horizon?: string;
 }

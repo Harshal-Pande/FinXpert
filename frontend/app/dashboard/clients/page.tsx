@@ -181,7 +181,12 @@ export default function ClientsPage() {
                             </span>
                           </td>
                           <td className="px-4 py-4 text-right font-mono font-medium text-slate-800">
-                            {formatInr(client.portfolio?.total_value ?? 0)}
+                            {formatInr(
+                              (client.investments ?? []).reduce(
+                                (sum, investment) => sum + investment.total_value,
+                                0,
+                              ),
+                            )}
                           </td>
                         </tr>
                       ))}

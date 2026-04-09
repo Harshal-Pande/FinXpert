@@ -20,7 +20,7 @@ export class AdvisoryService {
     const client = await this.prisma.client.findUnique({
       where: { id: clientId },
       include: {
-        portfolio: { include: { assets: true } },
+        investments: true,
         healthScores: { orderBy: { calculated_at: 'desc' }, take: 1 },
         portfolioTarget: true,
       },
@@ -31,10 +31,10 @@ export class AdvisoryService {
     }
 
     // Build context for AI
-    const portfolioSummary = client.portfolio?.assets?.map((a) => ({
-      name: a.asset_name,
-      type: a.asset_type,
-      value: a.value,
+    const portfolioSummary = client.investments?.map((investment) => ({
+      name: investment.instrument_name,
+      type: investment.investment_type,
+      value: investment.total_value,
     })) ?? [];
 
     const healthScore = client.healthScores?.[0]?.score ?? 'N/A';
@@ -43,7 +43,10 @@ export class AdvisoryService {
       clientName: client.name,
       riskProfile: client.risk_profile,
       annualIncome: client.annual_income,
-      portfolioValue: client.portfolio?.total_value ?? 0,
+      portfolioValue: client.investments?.reduce(
+        (sum, investment) => sum + investment.total_value,
+        0,
+      ) ?? 0,
       portfolioAssets: portfolioSummary,
       healthScore,
       targets: client.portfolioTarget,
@@ -81,7 +84,7 @@ export class AdvisoryService {
         clientId,
         clientName: client.name,
         subject: `Portfolio Review Advisory - ${client.name}`,
-        body: `Dear ${client.name}, based on your current portfolio value of ₹${(client.portfolio?.total_value ?? 0).toLocaleString('en-IN')}, we recommend reviewing your asset allocation to align with your ${client.risk_profile ?? 'moderate'} risk profile.`,
+        body: `Dear ${client.name}, based on your current portfolio value of ₹${(client.investments?.reduce((sum, investment) => sum + investment.total_value, 0) ?? 0).toLocaleString('en-IN')}, we recommend reviewing your asset allocation to align with your ${client.risk_profile ?? 'moderate'} risk profile.`,
         advice:
           'Please schedule a consultation with your advisor for a detailed review.',
         sentAt: new Date().toISOString(),

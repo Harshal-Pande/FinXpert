@@ -44,7 +44,7 @@ export class HealthScoreService {
     const client = await this.prisma.client.findUnique({
       where: { id: clientId },
       include: {
-        portfolio: { include: { assets: true } },
+        investments: true,
       },
     });
 
@@ -74,7 +74,7 @@ export class HealthScoreService {
     monthly_expense: number;
     emergency_fund: number | null;
     insurance_coverage: number | null;
-    portfolio: { assets: { asset_type: string; value: number }[] } | null;
+    investments: { investment_type: string; total_value: number }[];
   }): HealthBreakdown {
     // 1. Income-to-Expense Ratio (target: save at least 30% of income)
     const monthlySavings = client.annual_income / 12 - client.monthly_expense;
@@ -91,16 +91,25 @@ export class HealthScoreService {
     const emergencyFundScore = Math.min(10, Math.max(0, emergencyRatio * 10));
 
     // 3. Portfolio Diversification (presence of 4 asset types = 10)
-    const assets = client.portfolio?.assets ?? [];
-    const uniqueTypes = new Set(assets.map((a) => a.asset_type?.toLowerCase()).filter(Boolean));
+    const investments = client.investments ?? [];
+    const uniqueTypes = new Set(
+      investments
+        .map((investment) => investment.investment_type?.toLowerCase())
+        .filter(Boolean),
+    );
     const maxTypes = 4;
     const diversificationScore = (uniqueTypes.size / maxTypes) * 10;
 
     // Also check if no single asset > 60% of portfolio
-    const totalValue = assets.reduce((sum, a) => sum + a.value, 0);
+    const totalValue = investments.reduce(
+      (sum, investment) => sum + investment.total_value,
+      0,
+    );
     let concentrationPenalty = 0;
     if (totalValue > 0) {
-      const maxAssetPct = Math.max(...assets.map((a) => a.value / totalValue));
+      const maxAssetPct = Math.max(
+        ...investments.map((investment) => investment.total_value / totalValue),
+      );
       if (maxAssetPct > 0.6) {
         concentrationPenalty = (maxAssetPct - 0.6) * 10; // penalty for over-concentration
       }

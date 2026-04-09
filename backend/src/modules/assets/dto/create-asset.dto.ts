@@ -1,15 +1,23 @@
-import { IsString, IsNumber, IsIn, Min } from 'class-validator';
+import { IsString, IsNumber, IsIn, Min, IsDateString } from 'class-validator';
 import { Type } from 'class-transformer';
 
 export class CreateAssetDto {
-  @IsIn(['stock', 'mutual_fund', 'crypto', 'debt'])
-  asset_type: string;
+  @IsIn(['Stock', 'Crypto', 'Debt', 'Mutual Fund'])
+  investment_type: 'Stock' | 'Crypto' | 'Debt' | 'Mutual Fund';
 
   @IsString()
-  asset_name: string;
+  instrument_name: string;
 
   @IsNumber()
   @Type(() => Number)
   @Min(0)
-  value: number;
+  quantity: number;
+
+  @IsNumber()
+  @Type(() => Number)
+  @Min(0)
+  buy_rate: number;
+
+  @IsDateString()
+  bought_at: string;
 }

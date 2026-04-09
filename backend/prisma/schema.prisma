@@ -4,7 +4,6 @@ generator client {
 
 datasource db {
   provider = "postgresql"
-  url      = env("DATABASE_URL")
 }
 
 model Advisor {
@@ -31,34 +30,34 @@ model Client {
   created_at        DateTime @default(now())
   updated_at        DateTime @updatedAt
   advisor           Advisor  @relation(fields: [advisor_id], references: [id], onDelete: Cascade)
-  portfolio         Portfolio?
+  investments       Investment[]
   healthScores      HealthScore[]
   portfolioTarget   PortfolioTarget?
   todos             TodoItem[]
 }
 
-model Portfolio {
-  id         String   @id @default(uuid())
-  client_id  String   @unique
-  total_value Float   @default(0)
-  created_at DateTime @default(now())
-  updated_at DateTime @updatedAt
-  client     Client   @relation(fields: [client_id], references: [id], onDelete: Cascade)
-  assets     Asset[]
+enum InvestmentType {
+  Stock
+  Crypto
+  Debt
+  Mutual_Fund
 }
 
-model Asset {
+model Investment {
   id           String   @id @default(uuid())
-  portfolio_id String
-  asset_type   String   // stock | mutual_fund | crypto | debt
-  asset_name   String
-  value        Float
+  client_id    String
+  investment_type InvestmentType
+  instrument_name String
+  quantity     Float
+  buy_rate     Float
+  total_value  Float
+  bought_at    DateTime
   created_at   DateTime @default(now())
   updated_at   DateTime @updatedAt
-  portfolio    Portfolio @relation(fields: [portfolio_id], references: [id], onDelete: Cascade)
+  client       Client   @relation(fields: [client_id], references: [id], onDelete: Cascade)
 
-  @@index([portfolio_id])
-  @@index([asset_type])
+  @@index([client_id])
+  @@index([investment_type])
 }
 
 model HealthScore {

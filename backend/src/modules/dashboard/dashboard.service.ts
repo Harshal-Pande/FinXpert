@@ -11,10 +11,10 @@ export class DashboardService {
       clientWhere.advisor_id = advisorId;
     }
 
-    const [totalClients, portfolios, marketAlerts, recentInsights, todos] =
+    const [totalClients, investments, marketAlerts, recentInsights, todos] =
       await Promise.all([
         this.prisma.client.count({ where: clientWhere }),
-        this.prisma.portfolio.findMany({
+        this.prisma.investment.findMany({
           where: clientWhere.advisor_id
             ? { client: { advisor_id: clientWhere.advisor_id as string } }
             : {},
@@ -41,7 +41,7 @@ export class DashboardService {
         }),
       ]);
 
-    const totalAUM = portfolios.reduce((sum, p) => sum + p.total_value, 0);
+    const totalAUM = investments.reduce((sum, investment) => sum + investment.total_value, 0);
 
     return {
       totalClients,

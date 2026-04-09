@@ -38,7 +38,7 @@ export class ClientsService {
     const [items, total] = await Promise.all([
       this.prisma.client.findMany({
         where,
-        include: { portfolio: true },
+        include: { investments: true },
         skip: (page - 1) * limit,
         take: limit,
         orderBy: { created_at: 'desc' },
@@ -53,9 +53,7 @@ export class ClientsService {
     const client = await this.prisma.client.findUnique({
       where: { id },
       include: {
-        portfolio: {
-          include: { assets: true },
-        },
+        investments: true,
         healthScores: {
           orderBy: { calculated_at: 'desc' },
           take: 1,

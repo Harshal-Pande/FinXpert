@@ -1,6 +1,6 @@
 import 'dotenv/config';
 import { PrismaPg } from '@prisma/adapter-pg';
-import { PrismaClient } from '@prisma/client';
+import { InvestmentType, PrismaClient } from '@prisma/client';
 import * as bcrypt from 'bcrypt';
 import * as fs from 'fs';
 import * as path from 'path';
@@ -10,37 +10,41 @@ const adapter = new PrismaPg({
 });
 const prisma = new PrismaClient({ adapter });
 
-type SeedAsset = {
-  assetType: 'stock' | 'mutual_fund' | 'crypto' | 'debt';
-  assetName: string;
-  value: number;
+type SeedInvestment = {
+  investment_type: string;
+  instrument_name: string;
+  quantity: number;
+  buy_rate: number;
+  bought_at: string;
 };
 
 type SeedClient = {
-  clientCode: number;
   name: string;
   age: number;
   occupation: string;
-  annualIncome: number;
-  monthlyExpense: number;
-  riskProfile: string;
-  investmentHorizon: string;
-  emergencyFund: number;
-  insuranceCoverage: number;
-  portfolioTotalValue: number;
-  portfolioTarget: {
-    stock: number;
-    mutual_fund: number;
-    crypto: number;
-    debt: number;
-  };
-  assets: SeedAsset[];
+  annual_income: number;
+  monthly_expense: number;
+  emergency_fund: number;
+  insurance_coverage: number;
+  risk_profile: string;
+  investment_horizon: string;
+  investments: SeedInvestment[];
 };
 
 function loadSeedClients(): SeedClient[] {
   const seedPath = path.join(__dirname, 'data', 'clients.seed.json');
   const raw = fs.readFileSync(seedPath, 'utf-8');
   return JSON.parse(raw) as SeedClient[];
+}
+
+function normalizeInvestmentType(input: string): InvestmentType {
+  const normalized = input.trim().toLowerCase().replace(/\s+/g, '_');
+  if (normalized === 'stock') return InvestmentType.Stock;
+  if (normalized === 'crypto') return InvestmentType.Crypto;
+  if (normalized === 'debt') return InvestmentType.Debt;
+  if (normalized === 'mutual_fund') return InvestmentType.Mutual_Fund;
+
+  throw new Error(`Unsupported investment_type in seed JSON: "${input}"`);
 }
 
 async function main() {
@@ -59,50 +63,53 @@ async function main() {
   console.log('✅ Advisor created: advisor@finxpert.com');
 
   // Keep seed idempotent for this advisor: reset only advisor-scoped data.
+  await prisma.investment.deleteMany({
+    where: {
+      client: {
+        advisor_id: advisor.id,
+      },
+    },
+  });
   await prisma.todoItem.deleteMany({ where: { advisor_id: advisor.id } });
   await prisma.client.deleteMany({ where: { advisor_id: advisor.id } });
 
-  // 2. Create Clients with Portfolios from normalized dataset
-  const clientsData = loadSeedClients();
+  // 2. Create Clients with direct investments from normalized dataset
+  const clientsData = loadSeedClients().slice(0, 15);
   const createdClients: { id: string; name: string }[] = [];
 
   for (const data of clientsData) {
+    const investments = data.investments.map((item) => {
+      const quantity = Number(item.quantity);
+      const buyRate = Number(item.buy_rate);
+      return {
+        investment_type: normalizeInvestmentType(item.investment_type),
+        instrument_name: item.instrument_name,
+        quantity,
+        buy_rate: buyRate,
+        total_value: quantity * buyRate,
+        bought_at: new Date(item.bought_at),
+      };
+    });
+
     const client = await prisma.client.create({
       data: {
         advisor_id: advisor.id,
         name: data.name,
         age: data.age,
         occupation: data.occupation,
-        annual_income: data.annualIncome,
-        monthly_expense: data.monthlyExpense,
-        risk_profile: data.riskProfile,
-        investment_horizon: data.investmentHorizon,
-        emergency_fund: data.emergencyFund,
-        insurance_coverage: data.insuranceCoverage,
-        portfolio: {
-          create: {
-            total_value: data.portfolioTotalValue,
-            assets: {
-              create: data.assets.map((asset) => ({
-                asset_type: asset.assetType,
-                asset_name: asset.assetName,
-                value: asset.value,
-              })),
-            },
-          },
-        },
-        portfolioTarget: {
-          create: {
-            stock_target: data.portfolioTarget.stock,
-            mutual_fund_target: data.portfolioTarget.mutual_fund,
-            crypto_target: data.portfolioTarget.crypto,
-            debt_target: data.portfolioTarget.debt,
-          },
+        annual_income: data.annual_income,
+        monthly_expense: data.monthly_expense,
+        risk_profile: data.risk_profile,
+        investment_horizon: data.investment_horizon,
+        emergency_fund: data.emergency_fund,
+        insurance_coverage: data.insurance_coverage,
+        investments: {
+          create: investments,
         },
       },
     });
     createdClients.push({ id: client.id, name: client.name });
-    console.log(`👤 Created client: ${client.name} (${data.clientCode})`);
+    console.log(`👤 Created client: ${client.name}`);
   }
 
   // 3. Create sample TodoItems for the advisor

@@ -6,29 +6,29 @@ export class PortfolioService {
   constructor(private readonly prisma: PrismaService) {}
 
   async getByClient(clientId: string, assetType?: string) {
-    const portfolio = await this.prisma.portfolio.findFirst({
-      where: { client_id: clientId },
+    const client = await this.prisma.client.findUnique({
+      where: { id: clientId },
       include: {
-        assets: assetType
-          ? { where: { asset_type: assetType } }
+        investments: assetType
+          ? { where: { investment_type: assetType as any } }
           : true,
       },
     });
-    if (!portfolio) throw new NotFoundException('Portfolio not found');
+    if (!client) throw new NotFoundException('Client not found');
 
-    // Compute allocation breakdown
-    const allAssets = await this.prisma.asset.findMany({
-      where: { portfolio_id: portfolio.id },
-    });
+    const allInvestments = client.investments;
 
-    const totalValue = allAssets.reduce((sum, a) => sum + a.value, 0);
+    const totalValue = allInvestments.reduce(
+      (sum, investment) => sum + investment.total_value,
+      0,
+    );
     const allocation: Record<string, { value: number; percentage: number }> = {};
-    for (const asset of allAssets) {
-      const type = asset.asset_type;
+    for (const investment of allInvestments) {
+      const type = investment.investment_type;
       if (!allocation[type]) {
         allocation[type] = { value: 0, percentage: 0 };
       }
-      allocation[type].value += asset.value;
+      allocation[type].value += investment.total_value;
     }
     for (const type of Object.keys(allocation)) {
       allocation[type].percentage =
@@ -38,7 +38,9 @@ export class PortfolioService {
     }
 
     return {
-      ...portfolio,
+      client_id: client.id,
+      investments: allInvestments,
+      total_value: totalValue,
       allocation,
     };
   }
