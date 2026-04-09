@@ -23,6 +23,24 @@ function formatInr(value: number): string {
   }).format(value ?? 0);
 }
 
+function getHealthScoreBadge(score?: number): string {
+  if (score == null) return 'bg-slate-100 text-slate-600';
+  if (score < 4) return 'bg-red-100 text-red-700';
+  if (score < 6) return 'bg-orange-100 text-orange-700';
+  if (score < 8) return 'bg-yellow-100 text-yellow-700';
+  if (score < 9.5) return 'bg-lime-100 text-lime-700';
+  return 'bg-emerald-100 text-emerald-700';
+}
+
+function getHealthScoreLabel(score?: number): string {
+  if (score == null) return 'N/A';
+  if (score < 4) return 'POOR';
+  if (score < 6) return 'WEAK';
+  if (score < 8) return 'MODERATE';
+  if (score < 9.5) return 'GOOD';
+  return 'EXCELLENT';
+}
+
 const RISK_OPTIONS = [
   { label: 'All Profiles', value: '' },
   { label: 'Conservative', value: 'conservative' },
@@ -151,14 +169,15 @@ export default function ClientsPage() {
                  <tr className="border-b-2 border-slate-100 text-slate-500">
                    <th className="py-3 px-4 font-semibold uppercase tracking-wider">Client</th>
                    <th className="py-3 px-4 font-semibold uppercase tracking-wider text-center">Risk Profile</th>
-                   <th className="py-3 px-4 font-semibold uppercase tracking-wider text-right">Portfolio Value</th>
+                  <th className="py-3 px-4 font-semibold uppercase tracking-wider text-right">Portfolio Value</th>
+                  <th className="py-3 px-4 font-semibold uppercase tracking-wider text-center">Health Score</th>
                  </tr>
                </thead>
                <tbody className="divide-y divide-slate-50">
                   {loading
                     ? Array.from({ length: 3 }).map((_, i) => (
                         <tr key={i}>
-                          <td colSpan={3} className="px-4 py-4">
+                          <td colSpan={4} className="px-4 py-4">
                             <div className="h-4 w-full animate-pulse rounded bg-slate-100" />
                           </td>
                         </tr>
@@ -187,6 +206,13 @@ export default function ClientsPage() {
                                 0,
                               ),
                             )}
+                          </td>
+                          <td className="px-4 py-4 text-center">
+                            <span
+                              className={`inline-flex rounded-full px-2.5 py-1 text-[11px] font-bold ${getHealthScoreBadge(client.calculatedHealthScore)}`}
+                            >
+                              {client.calculatedHealthScore?.toFixed(1) ?? '—'} {getHealthScoreLabel(client.calculatedHealthScore)}
+                            </span>
                           </td>
                         </tr>
                       ))}

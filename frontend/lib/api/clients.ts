@@ -23,6 +23,19 @@ export interface Client {
   investment_horizon?: string | null;
   investments?: Investment[];
   healthScores?: { score: number; calculated_at: string }[];
+  calculatedHealthScore?: number;
+  calculatedHealthBreakdown?: {
+    baseScore: number;
+    rawScore: number;
+    normalizedScore: number;
+    factorValues: Record<string, number>;
+    appliedSteps: Array<{
+      factorId: string;
+      operation: 'add' | 'subtract';
+      multiplier: number;
+    }>;
+    weightedTotal: number;
+  };
 }
 
 export interface ListClientsResponse {

@@ -13,6 +13,7 @@ model Advisor {
   created_at DateTime @default(now())
   clients   Client[]
   todos     TodoItem[]
+  health_score_formula HealthScoreFormula?
 }
 
 model Client {
@@ -69,6 +70,17 @@ model HealthScore {
   client        Client   @relation(fields: [client_id], references: [id], onDelete: Cascade)
 
   @@index([client_id])
+}
+
+model HealthScoreFormula {
+  id         String   @id @default(uuid())
+  advisor_id String   @unique
+  steps      Json
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+  advisor    Advisor  @relation(fields: [advisor_id], references: [id], onDelete: Cascade)
+
+  @@index([advisor_id])
 }
 
 model PortfolioTarget {

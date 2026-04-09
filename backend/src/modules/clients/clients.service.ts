@@ -1,10 +1,19 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../database/prisma.service';
 import { UpdateClientDto } from './dto/update-client.dto';
+import { HealthScoreService } from '../health-score/health-score.service';
+import {
+  FormulaStep,
+  HealthScoreFormulaService,
+} from '../health-score/health-score-formula.service';
 
 @Injectable()
 export class ClientsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly healthScoreService: HealthScoreService,
+    private readonly formulaService: HealthScoreFormulaService,
+  ) {}
 
   async findAll(params: {
     advisorId?: string;
@@ -35,7 +44,7 @@ export class ClientsService {
       where.risk_profile = riskProfile;
     }
 
-    const [items, total] = await Promise.all([
+    const [items, total, formula] = await Promise.all([
       this.prisma.client.findMany({
         where,
         include: { investments: true },
@@ -44,9 +53,40 @@ export class ClientsService {
         orderBy: { created_at: 'desc' },
       }),
       this.prisma.client.count({ where }),
+      this.formulaService.getForAdvisor(advisorId),
     ]);
 
-    return { items, total, page, limit };
+    const steps = formula.steps as FormulaStep[];
+
+    const rawPass = items.map((client) => ({
+      client,
+      breakdown: this.healthScoreService.calculateGlobalScore(client, steps),
+    }));
+    const rawScores = rawPass.map((entry) => entry.breakdown.rawScore);
+    const globalMinRaw = rawScores.length ? Math.min(...rawScores) : 0;
+    const globalMaxRaw = rawScores.length ? Math.max(...rawScores) : 0;
+
+    const projected = rawPass.map((entry) => {
+      const normalized = this.healthScoreService.normalizeRawScore(
+        entry.breakdown.rawScore,
+        globalMinRaw,
+        globalMaxRaw,
+      );
+      const breakdown = {
+        ...entry.breakdown,
+        normalizedScore: Math.round(normalized * 10) / 10,
+        globalMinRaw: Math.round(globalMinRaw * 10) / 10,
+        globalMaxRaw: Math.round(globalMaxRaw * 10) / 10,
+        weightedTotal: Math.round(normalized * 10) / 10,
+      };
+      return {
+        ...entry.client,
+        calculatedHealthScore: breakdown.weightedTotal,
+        calculatedHealthBreakdown: breakdown,
+      };
+    });
+
+    return { items: projected, total, page, limit };
   }
 
   async findOne(id: string) {
