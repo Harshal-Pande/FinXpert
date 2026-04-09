@@ -7,6 +7,7 @@ import { apiClient } from '@/lib/api/client';
 import Link from 'next/link';
 import { ArrowLeft, User, Briefcase, Send } from 'lucide-react';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import AssetCard from '@/components/portfolio/AssetCard';
 
 function getRiskBadgeStyles(riskProfile: string): string {
   const r = (riskProfile ?? '').toLowerCase();
@@ -41,6 +42,7 @@ export default function ClientDetailPage() {
   const [error, setError] = useState<string | null>(null);
 
   const [activeTab, setActiveTab] = useState('stock');
+  const [viewMode, setViewMode] = useState<'VALUE' | 'RETURNS'>('VALUE');
 
   // Advisory
   const [sendingAdvisory, setSendingAdvisory] = useState(false);
@@ -109,6 +111,16 @@ export default function ClientDetailPage() {
   const cryptoAssets = allAssets.filter((a) => a.investment_type === 'Crypto');
   const mutualFundAssets = allAssets.filter((a) => a.investment_type === 'Mutual_Fund');
 
+  const getAssetReturns = (asset: (typeof allAssets)[number]) =>
+    (asset.current_price - asset.buy_rate) * asset.quantity;
+
+  const getCategoryDisplayValue = (assets: typeof allAssets) => {
+    if (viewMode === 'VALUE') {
+      return assets.reduce((sum, asset) => sum + asset.quantity * asset.current_price, 0);
+    }
+    return assets.reduce((sum, asset) => sum + getAssetReturns(asset), 0);
+  };
+
   const renderActiveTabData = () => {
     let assets = stockAssets;
     if (activeTab === 'debt') assets = debtAssets;
@@ -121,12 +133,11 @@ export default function ClientDetailPage() {
 
     return (
       <div className="mt-4 pt-4 border-t border-dashed border-slate-300">
-        {assets.map((asset) => (
-          <div key={asset.id} className="flex justify-between py-1 text-sm">
-            <span className="font-medium text-slate-700">{asset.instrument_name}</span>
-            <span className="text-slate-900">{formatInr(asset.total_value)}</span>
-          </div>
-        ))}
+        <div className="space-y-2">
+          {assets.map((asset) => (
+            <AssetCard key={asset.id} investment={asset} viewMode={viewMode} />
+          ))}
+        </div>
       </div>
     );
   };
@@ -192,6 +203,27 @@ export default function ClientDetailPage() {
           </div>
         </div>
 
+        <div className="mt-6 inline-flex rounded-xl border border-slate-300 bg-slate-100 p-1">
+          <button
+            type="button"
+            onClick={() => setViewMode('VALUE')}
+            className={`rounded-lg px-3 py-1 text-xs font-semibold ${
+              viewMode === 'VALUE' ? 'bg-slate-800 text-white' : 'text-slate-700'
+            }`}
+          >
+            Market Value
+          </button>
+          <button
+            type="button"
+            onClick={() => setViewMode('RETURNS')}
+            className={`rounded-lg px-3 py-1 text-xs font-semibold ${
+              viewMode === 'RETURNS' ? 'bg-slate-800 text-white' : 'text-slate-700'
+            }`}
+          >
+            Total Returns
+          </button>
+        </div>
+
         {/* 4 Category Blocks */}
         <div className="w-full grid grid-cols-2 md:grid-cols-4 gap-6 mt-8">
           
@@ -203,7 +235,7 @@ export default function ClientDetailPage() {
               Stock
             </div>
             <div className="mt-8 text-center text-xl font-bold font-mono">
-              {formatInr(stockAssets.reduce((sum, a) => sum + a.total_value, 0))}
+              {formatInr(getCategoryDisplayValue(stockAssets))}
             </div>
             {activeTab === 'stock' && renderActiveTabData()}
           </div>
@@ -216,7 +248,7 @@ export default function ClientDetailPage() {
               Debt
             </div>
             <div className="mt-8 text-center text-xl font-bold font-mono">
-              {formatInr(debtAssets.reduce((sum, a) => sum + a.total_value, 0))}
+              {formatInr(getCategoryDisplayValue(debtAssets))}
             </div>
             {activeTab === 'debt' && renderActiveTabData()}
           </div>
@@ -229,7 +261,7 @@ export default function ClientDetailPage() {
               Crypto
             </div>
             <div className="mt-8 text-center text-xl font-bold font-mono">
-              {formatInr(cryptoAssets.reduce((sum, a) => sum + a.total_value, 0))}
+              {formatInr(getCategoryDisplayValue(cryptoAssets))}
             </div>
             {activeTab === 'crypto' && renderActiveTabData()}
           </div>
@@ -242,7 +274,7 @@ export default function ClientDetailPage() {
               Mutual Fund
             </div>
             <div className="mt-8 text-center text-xl font-bold font-mono">
-              {formatInr(mutualFundAssets.reduce((sum, a) => sum + a.total_value, 0))}
+              {formatInr(getCategoryDisplayValue(mutualFundAssets))}
             </div>
             {activeTab === 'mutual_fund' && renderActiveTabData()}
           </div>

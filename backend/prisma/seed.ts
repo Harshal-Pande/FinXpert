@@ -1,6 +1,6 @@
 import 'dotenv/config';
 import { PrismaPg } from '@prisma/adapter-pg';
-import { InvestmentType, PrismaClient } from '@prisma/client';
+import { InvestmentCategory, InvestmentType, PrismaClient } from '@prisma/client';
 import * as bcrypt from 'bcrypt';
 import * as fs from 'fs';
 import * as path from 'path';
@@ -47,6 +47,13 @@ function normalizeInvestmentType(input: string): InvestmentType {
   throw new Error(`Unsupported investment_type in seed JSON: "${input}"`);
 }
 
+function mapCategory(type: InvestmentType): InvestmentCategory {
+  if (type === 'Stock') return 'STOCK';
+  if (type === 'Crypto') return 'CRYPTO';
+  if (type === 'Mutual_Fund') return 'MUTUAL_FUND';
+  return 'CASH';
+}
+
 async function main() {
   const hashedPassword = await bcrypt.hash('password123', 10);
 
@@ -81,12 +88,17 @@ async function main() {
     const investments = data.investments.map((item) => {
       const quantity = Number(item.quantity);
       const buyRate = Number(item.buy_rate);
+      const type = normalizeInvestmentType(item.investment_type);
+      const currentPrice = buyRate * 1.08;
       return {
-        investment_type: normalizeInvestmentType(item.investment_type),
+        investment_type: type,
+        category: mapCategory(type),
         instrument_name: item.instrument_name,
         quantity,
+        avg_buy_price: buyRate,
+        current_price: currentPrice,
         buy_rate: buyRate,
-        total_value: quantity * buyRate,
+        total_value: quantity * currentPrice,
         bought_at: new Date(item.bought_at),
       };
     });
@@ -110,6 +122,81 @@ async function main() {
     });
     createdClients.push({ id: client.id, name: client.name });
     console.log(`👤 Created client: ${client.name}`);
+
+    if (client.name === 'Ishita Sen') {
+      const overrides = [
+        {
+          instrument_name: 'Nykaa',
+          quantity: 400,
+          avg_buy_price: 155,
+          current_price: 178,
+        },
+        {
+          instrument_name: 'Zomato',
+          quantity: 800,
+          avg_buy_price: 195,
+          current_price: 182,
+        },
+        {
+          instrument_name: 'Bitcoin',
+          quantity: 0.12,
+          avg_buy_price: 5_500_000,
+          current_price: 6_200_000,
+        },
+        {
+          instrument_name: 'HDFC MF',
+          quantity: 500,
+          avg_buy_price: 120,
+          current_price: 145,
+        },
+      ] as const;
+
+      for (const item of overrides) {
+        const result = await prisma.investment.updateMany({
+          where: {
+            client_id: client.id,
+            instrument_name: item.instrument_name,
+          },
+          data: {
+            quantity: item.quantity,
+            avg_buy_price: item.avg_buy_price,
+            current_price: item.current_price,
+            buy_rate: item.avg_buy_price,
+            total_value: item.quantity * item.current_price,
+          },
+        });
+
+        if (result.count === 0) {
+          const investment_type =
+            item.instrument_name === 'Bitcoin'
+              ? 'Crypto'
+              : item.instrument_name === 'HDFC MF'
+                ? 'Mutual_Fund'
+                : 'Stock';
+          const category =
+            item.instrument_name === 'Bitcoin'
+              ? 'CRYPTO'
+              : item.instrument_name === 'HDFC MF'
+                ? 'MUTUAL_FUND'
+                : 'STOCK';
+
+          await prisma.investment.create({
+            data: {
+              client_id: client.id,
+              investment_type,
+              category,
+              instrument_name: item.instrument_name,
+              quantity: item.quantity,
+              avg_buy_price: item.avg_buy_price,
+              current_price: item.current_price,
+              buy_rate: item.avg_buy_price,
+              total_value: item.quantity * item.current_price,
+              bought_at: new Date(),
+            },
+          });
+        }
+      }
+    }
   }
 
   // 3. Create sample TodoItems for the advisor

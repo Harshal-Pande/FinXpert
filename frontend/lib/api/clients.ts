@@ -3,11 +3,20 @@ import { apiClient } from './client';
 export interface Investment {
   id: string;
   investment_type: 'Stock' | 'Crypto' | 'Debt' | 'Mutual_Fund';
+  category: 'STOCK' | 'MUTUAL_FUND' | 'CRYPTO' | 'CASH';
   instrument_name: string;
   quantity: number;
+  avg_buy_price: number;
+  current_price: number;
   buy_rate: number;
   total_value: number;
   bought_at: string;
+  performance?: {
+    invested_amount: number;
+    current_value: number;
+    absolute_pnl: number;
+    pnl_percentage: number;
+  };
 }
 
 export interface Client {
