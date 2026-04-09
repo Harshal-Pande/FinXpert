@@ -1,6 +1,6 @@
 import { IsIn } from 'class-validator';
 
 export class RunStressTestDto {
-  @IsIn(['stock_crash', 'crypto_crash', 'bear_market'])
-  scenario: string;
+  @IsIn(['MARKET_MELTDOWN', 'JOB_LOSS', 'MEDICAL_SHOCK'])
+  scenario: 'MARKET_MELTDOWN' | 'JOB_LOSS' | 'MEDICAL_SHOCK';
 }

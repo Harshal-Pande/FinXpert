@@ -1,13 +1,15 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useParams } from 'next/navigation';
 import { getClient, Client } from '@/lib/api/clients';
 import { apiClient } from '@/lib/api/client';
 import Link from 'next/link';
-import { ArrowLeft, User, Briefcase, Send } from 'lucide-react';
+import { ArrowLeft, User, Briefcase, Send, Shield } from 'lucide-react';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import AssetCard from '@/components/portfolio/AssetCard';
+import StressTestModal from '@/components/modals/StressTestModal';
+import { StressScenario, StressTestResult } from '@/lib/api/stress-test';
 
 function getRiskBadgeStyles(riskProfile: string): string {
   const r = (riskProfile ?? '').toLowerCase();
@@ -43,6 +45,12 @@ export default function ClientDetailPage() {
 
   const [activeTab, setActiveTab] = useState('stock');
   const [viewMode, setViewMode] = useState<'VALUE' | 'RETURNS'>('VALUE');
+  const [stressOpen, setStressOpen] = useState(false);
+  const [simulationActive, setSimulationActive] = useState(false);
+  const [activeSimulation, setActiveSimulation] = useState<StressScenario | null>(null);
+  const [stressedScore, setStressedScore] = useState<number | null>(null);
+  const [displayedScore, setDisplayedScore] = useState(0);
+  const recalculateAttemptedRef = useRef(false);
 
   // Advisory
   const [sendingAdvisory, setSendingAdvisory] = useState(false);
@@ -60,6 +68,57 @@ export default function ClientDetailPage() {
       .catch((err) => setError(err instanceof Error ? err.message : 'Failed to load client'))
       .finally(() => setLoading(false));
   }, [id]);
+
+  const realHealthScore = useMemo(() => {
+    if (!client) return 0;
+    return (
+      client.healthScore ??
+      client.healthScores?.[0]?.score ??
+      client.calculatedHealthScore ??
+      0
+    );
+  }, [client]);
+
+  useEffect(() => {
+    if (!id || !client || recalculateAttemptedRef.current) return;
+    if (realHealthScore > 0) return;
+    recalculateAttemptedRef.current = true;
+    apiClient<{ score: number }>(`/clients/${id}/health-score/calculate`, { method: 'POST' })
+      .then((res) => {
+        setClient((prev) =>
+          prev
+            ? {
+                ...prev,
+                healthScore: res.score,
+                healthScores: [{ score: res.score, calculated_at: new Date().toISOString() }],
+              }
+            : prev,
+        );
+      })
+      .catch(() => {
+        // Keep existing fallback score when recalculation fails.
+      });
+  }, [id, client, realHealthScore]);
+
+  const headerTargetScore = activeSimulation ? stressedScore ?? realHealthScore : realHealthScore;
+
+  useEffect(() => {
+    const target = Number.isFinite(headerTargetScore) ? headerTargetScore : 0;
+    const from = displayedScore;
+    const steps = 16;
+    let tick = 0;
+    const delta = (target - from) / steps;
+    const timer = window.setInterval(() => {
+      tick += 1;
+      if (tick >= steps) {
+        setDisplayedScore(target);
+        window.clearInterval(timer);
+      } else {
+        setDisplayedScore((prev) => prev + delta);
+      }
+    }, 18);
+    return () => window.clearInterval(timer);
+  }, [headerTargetScore]);
 
   const handleSendAdvisory = async () => {
     if (!id) return;
@@ -111,14 +170,46 @@ export default function ClientDetailPage() {
   const cryptoAssets = allAssets.filter((a) => a.investment_type === 'Crypto');
   const mutualFundAssets = allAssets.filter((a) => a.investment_type === 'Mutual_Fund');
 
-  const getAssetReturns = (asset: (typeof allAssets)[number]) =>
-    (asset.current_price - asset.buy_rate) * asset.quantity;
-
-  const getCategoryDisplayValue = (assets: typeof allAssets) => {
-    if (viewMode === 'VALUE') {
-      return assets.reduce((sum, asset) => sum + asset.quantity * asset.current_price, 0);
+  const allocateDeduction = (assets: typeof allAssets, totalDeduction: number) => {
+    const deductions: Record<string, number> = {};
+    let remaining = totalDeduction;
+    for (const asset of assets) {
+      const value = asset.quantity * asset.current_price;
+      const applied = Math.min(value, remaining);
+      deductions[asset.id] = applied;
+      remaining -= applied;
+      if (remaining <= 0) break;
     }
-    return assets.reduce((sum, asset) => sum + getAssetReturns(asset), 0);
+    return { deductions, remaining };
+  };
+
+  const debtAllocation = useMemo(() => allocateDeduction(debtAssets, 500_000), [client, activeSimulation]);
+  const mfAllocation = useMemo(
+    () => allocateDeduction(mutualFundAssets, Math.max(0, debtAllocation.remaining)),
+    [client, activeSimulation, debtAllocation.remaining],
+  );
+
+  const getCategoryDisplayValue = (assets: typeof allAssets, bucket: 'stock' | 'debt' | 'crypto' | 'mutual_fund') => {
+    const stressedValue = (asset: (typeof assets)[number]) => {
+      const base = asset.quantity * asset.current_price;
+      if (activeSimulation === 'MARKET_MELTDOWN') {
+        if (asset.investment_type === 'Stock') return base * 0.6;
+        if (asset.investment_type === 'Crypto') return base * 0.3;
+      }
+      if (activeSimulation === 'MEDICAL_SHOCK') {
+        if (bucket === 'debt') return Math.max(0, base - (debtAllocation.deductions[asset.id] ?? 0));
+        if (bucket === 'mutual_fund') return Math.max(0, base - (mfAllocation.deductions[asset.id] ?? 0));
+      }
+      return base;
+    };
+    if (viewMode === 'VALUE') {
+      return assets.reduce((sum, asset) => sum + stressedValue(asset), 0);
+    }
+    return assets.reduce((sum, asset) => {
+      const stressed = stressedValue(asset);
+      const invested = asset.quantity * asset.buy_rate;
+      return sum + (stressed - invested);
+    }, 0);
   };
 
   const renderActiveTabData = () => {
@@ -135,7 +226,21 @@ export default function ClientDetailPage() {
       <div className="mt-4 pt-4 border-t border-dashed border-slate-300">
         <div className="space-y-2">
           {assets.map((asset) => (
-            <AssetCard key={asset.id} investment={asset} viewMode={viewMode} />
+            <AssetCard
+              key={asset.id}
+              investment={asset}
+              viewMode={viewMode}
+              activeSimulation={activeSimulation}
+              medicalShockDeduction={
+                activeSimulation === 'MEDICAL_SHOCK'
+                  ? activeTab === 'debt'
+                    ? debtAllocation.deductions[asset.id] ?? 0
+                    : activeTab === 'mutual_fund'
+                    ? mfAllocation.deductions[asset.id] ?? 0
+                    : 0
+                  : 0
+              }
+            />
           ))}
         </div>
       </div>
@@ -154,7 +259,9 @@ export default function ClientDetailPage() {
         
         {/* Title over border trick */}
         <div className="absolute -top-4 left-10 bg-white px-2 text-xl font-medium tracking-wide">
-          Client Information
+          <div className="inline-flex items-center gap-2">
+            <span>Client Information</span>
+          </div>
         </div>
 
         <div className="w-full grid grid-cols-1 md:grid-cols-2 gap-6 mt-2">
@@ -176,9 +283,26 @@ export default function ClientDetailPage() {
                    Age: {client!.age ?? '—'}
                  </span>
                  <div className="mt-2">
-                   <span className={`inline-flex rounded-md px-3 py-1 text-xs font-bold uppercase tracking-wider ${getRiskBadgeStyles(client!.risk_profile ?? '')}`}>
-                     {client!.risk_profile || 'Unknown Risk'}
-                   </span>
+                   <div className="flex flex-wrap items-center gap-2">
+                     <span className={`inline-flex rounded-md px-3 py-1 text-xs font-bold uppercase tracking-wider ${getRiskBadgeStyles(client!.risk_profile ?? '')}`}>
+                       {client!.risk_profile || 'Unknown Risk'}
+                     </span>
+                     <span
+                       className={`inline-flex rounded-md px-3 py-1 text-xs font-bold uppercase tracking-wider ${
+                         activeSimulation ? 'bg-red-100 text-red-700' : 'bg-indigo-100 text-indigo-700'
+                       }`}
+                     >
+                       {activeSimulation ? 'Stressed Score' : 'Health Score'}: {displayedScore.toFixed(1)}
+                     </span>
+                     <button
+                       type="button"
+                       onClick={() => setStressOpen(true)}
+                       className="inline-flex items-center rounded-md border border-slate-300 px-3 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-100"
+                     >
+                       <Shield className="mr-1 h-3.5 w-3.5" />
+                       Simulate Risk
+                     </button>
+                   </div>
                  </div>
                </div>
             </div>
@@ -224,6 +348,14 @@ export default function ClientDetailPage() {
           </button>
         </div>
 
+        {simulationActive && (
+          <div className="mt-4 w-full">
+            <span className="inline-flex items-center rounded-md bg-amber-100 px-3 py-1 text-xs font-bold uppercase tracking-wider text-amber-700">
+              Simulation Active
+            </span>
+          </div>
+        )}
+
         {/* 4 Category Blocks */}
         <div className="w-full grid grid-cols-2 md:grid-cols-4 gap-6 mt-8">
           
@@ -235,7 +367,7 @@ export default function ClientDetailPage() {
               Stock
             </div>
             <div className="mt-8 text-center text-xl font-bold font-mono">
-              {formatInr(getCategoryDisplayValue(stockAssets))}
+              {formatInr(getCategoryDisplayValue(stockAssets, 'stock'))}
             </div>
             {activeTab === 'stock' && renderActiveTabData()}
           </div>
@@ -248,7 +380,7 @@ export default function ClientDetailPage() {
               Debt
             </div>
             <div className="mt-8 text-center text-xl font-bold font-mono">
-              {formatInr(getCategoryDisplayValue(debtAssets))}
+              {formatInr(getCategoryDisplayValue(debtAssets, 'debt'))}
             </div>
             {activeTab === 'debt' && renderActiveTabData()}
           </div>
@@ -261,7 +393,7 @@ export default function ClientDetailPage() {
               Crypto
             </div>
             <div className="mt-8 text-center text-xl font-bold font-mono">
-              {formatInr(getCategoryDisplayValue(cryptoAssets))}
+              {formatInr(getCategoryDisplayValue(cryptoAssets, 'crypto'))}
             </div>
             {activeTab === 'crypto' && renderActiveTabData()}
           </div>
@@ -274,7 +406,7 @@ export default function ClientDetailPage() {
               Mutual Fund
             </div>
             <div className="mt-8 text-center text-xl font-bold font-mono">
-              {formatInr(getCategoryDisplayValue(mutualFundAssets))}
+              {formatInr(getCategoryDisplayValue(mutualFundAssets, 'mutual_fund'))}
             </div>
             {activeTab === 'mutual_fund' && renderActiveTabData()}
           </div>
@@ -320,6 +452,38 @@ export default function ClientDetailPage() {
         </div>
 
       </div>
+      {activeSimulation && (
+        <div className="fixed bottom-4 left-1/2 z-40 w-[min(720px,92vw)] -translate-x-1/2 rounded-xl border border-red-300 bg-white/90 p-3 shadow-lg backdrop-blur">
+          <div className="flex items-center justify-between gap-4">
+            <p className="text-sm font-semibold text-red-700">
+              🚨 SIMULATION ACTIVE: Showing Stressed Values
+            </p>
+            <button
+              type="button"
+              onClick={() => {
+                setActiveSimulation(null);
+                setSimulationActive(false);
+                setStressedScore(null);
+              }}
+              className="rounded-lg border border-red-300 bg-red-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-red-700"
+            >
+              Exit Stress Test
+            </button>
+          </div>
+        </div>
+      )}
+      <StressTestModal
+        open={stressOpen}
+        onClose={() => setStressOpen(false)}
+        clientId={client?.id}
+        currentScore={realHealthScore}
+        onSimulationActiveChange={setSimulationActive}
+        onSimulationSelect={(scenario: StressScenario, result: StressTestResult) => {
+          setActiveSimulation(scenario);
+          setStressedScore(result.stressedScore);
+          setSimulationActive(true);
+        }}
+      />
     </div>
   );
 }

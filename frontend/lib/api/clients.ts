@@ -31,6 +31,7 @@ export interface Client {
   insurance_coverage?: number | null;
   investment_horizon?: string | null;
   investments?: Investment[];
+  healthScore?: number | null;
   healthScores?: { score: number; calculated_at: string }[];
   calculatedHealthScore?: number;
   calculatedHealthBreakdown?: {

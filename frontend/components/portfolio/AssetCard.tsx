@@ -1,10 +1,13 @@
 'use client';
 
 import { Investment } from '@/lib/api/clients';
+import { StressScenario } from '@/lib/api/stress-test';
 
 type Props = {
   investment: Investment;
   viewMode: 'VALUE' | 'RETURNS';
+  activeSimulation?: StressScenario | null;
+  medicalShockDeduction?: number;
 };
 
 function fallbackPerformance(investment: Investment) {
@@ -32,13 +35,34 @@ function formatInr(value: number): string {
   }).format(value ?? 0);
 }
 
-export default function AssetCard({ investment, viewMode }: Props) {
+export default function AssetCard({
+  investment,
+  viewMode,
+  activeSimulation = null,
+  medicalShockDeduction = 0,
+}: Props) {
   const perf = investment.performance ?? fallbackPerformance(investment);
   const absoluteReturn = (investment.current_price - investment.buy_rate) * investment.quantity;
   const returnPct = investment.buy_rate > 0
     ? ((investment.current_price - investment.buy_rate) / investment.buy_rate) * 100
     : 0;
-  const positive = absoluteReturn >= 0;
+  const marketValue = perf.current_value;
+  const stressedMarketValue =
+    activeSimulation === 'MARKET_MELTDOWN'
+      ? investment.category === 'STOCK'
+        ? marketValue * 0.6
+        : investment.category === 'CRYPTO'
+        ? marketValue * 0.3
+        : marketValue
+      : activeSimulation === 'MEDICAL_SHOCK'
+      ? Math.max(0, marketValue - medicalShockDeduction)
+      : marketValue;
+  const stressedAbsoluteReturn = stressedMarketValue - investment.quantity * investment.buy_rate;
+  const stressedReturnPct =
+    investment.quantity * investment.buy_rate > 0
+      ? (stressedAbsoluteReturn / (investment.quantity * investment.buy_rate)) * 100
+      : 0;
+  const positive = (activeSimulation ? stressedAbsoluteReturn : absoluteReturn) >= 0;
 
   return (
     <div className="rounded-lg border border-slate-200 p-3">
@@ -54,10 +78,18 @@ export default function AssetCard({ investment, viewMode }: Props) {
       {investment.category !== 'CASH' && (
         <div className="mt-2">
           {viewMode === 'VALUE' ? (
-            <p className="text-sm font-semibold text-slate-900">{formatInr(perf.current_value)}</p>
+            activeSimulation ? (
+              <div className="flex items-center gap-2">
+                <p className="text-xs text-slate-500 line-through">{formatInr(marketValue)}</p>
+                <p className="text-sm font-semibold text-red-600">{formatInr(stressedMarketValue)}</p>
+              </div>
+            ) : (
+              <p className="text-sm font-semibold text-slate-900">{formatInr(perf.current_value)}</p>
+            )
           ) : (
             <p className={`text-sm font-semibold ${positive ? 'text-green-600' : 'text-red-600'}`}>
-              {formatInr(absoluteReturn)} ({returnPct.toFixed(2)}%)
+              {formatInr(activeSimulation ? stressedAbsoluteReturn : absoluteReturn)} (
+              {(activeSimulation ? stressedReturnPct : returnPct).toFixed(2)}%)
             </p>
           )}
         </div>
