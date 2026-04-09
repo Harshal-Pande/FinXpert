@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useParams } from 'next/navigation';
 import { getClient, Client } from '@/lib/api/clients';
+import { apiClient } from '@/lib/api/client';
 import Link from 'next/link';
 import { ArrowLeft, User, Briefcase, Send, Shield } from 'lucide-react';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
@@ -95,13 +96,13 @@ export default function ClientDetailPage() {
   const debtAllocation = useMemo(() => {
     if (activeSimulation !== 'MEDICAL_SHOCK') return { deductions: {} as Record<string, number>, remaining: 0 };
     return _allocateDeduction(_debtAssets, 500_000);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [client, activeSimulation]);
 
   const mfAllocation = useMemo(() => {
     if (activeSimulation !== 'MEDICAL_SHOCK') return { deductions: {} as Record<string, number>, remaining: 0 };
     return _allocateDeduction(_mutualFundAssets, Math.max(0, debtAllocation.remaining));
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [client, activeSimulation, debtAllocation.remaining]);
 
   // Health score is authoritative from the DB via getClient().
@@ -208,7 +209,7 @@ export default function ClientDetailPage() {
     if (activeTab === 'mutual_fund') assets = mutualFundAssets;
 
     if (assets.length === 0) {
-       return <p className="text-sm text-slate-400 p-4 text-center border-t border-dashed border-slate-300 mt-4">No data.</p>
+      return <p className="text-sm text-slate-400 p-4 text-center border-t border-dashed border-slate-300 mt-4">No data.</p>
     }
 
     return (
@@ -225,8 +226,8 @@ export default function ClientDetailPage() {
                   ? activeTab === 'debt'
                     ? debtAllocation.deductions[asset.id] ?? 0
                     : activeTab === 'mutual_fund'
-                    ? mfAllocation.deductions[asset.id] ?? 0
-                    : 0
+                      ? mfAllocation.deductions[asset.id] ?? 0
+                      : 0
                   : 0
               }
             />
@@ -238,14 +239,14 @@ export default function ClientDetailPage() {
 
   return (
     <div className="min-h-screen bg-slate-50 p-8 flex justify-center font-sans text-slate-800 relative pb-20">
-      
+
       <Link href="/dashboard/clients" className="absolute top-8 left-8 inline-flex items-center gap-2 text-sm font-medium text-slate-600 hover:text-slate-900">
         <ArrowLeft className="h-4 w-4" /> Back
       </Link>
 
       {/* Main Container */}
       <div className="w-full max-w-5xl border-2 border-slate-800 rounded-3xl p-8 relative flex flex-col items-center bg-white min-h-[600px] mt-8">
-        
+
         {/* Title over border trick */}
         <div className="absolute -top-4 left-10 bg-white px-2 text-xl font-medium tracking-wide">
           <div className="inline-flex items-center gap-2">
@@ -254,46 +255,45 @@ export default function ClientDetailPage() {
         </div>
 
         <div className="w-full grid grid-cols-1 md:grid-cols-2 gap-6 mt-2">
-          
+
           {/* Information Block */}
           <div className="border-2 border-slate-800 rounded-3xl p-6 relative flex flex-col justify-center gap-2 min-h-[240px]">
             <div className="absolute top-4 w-full text-center left-0 text-sm font-medium tracking-wide bg-white">
               Information
             </div>
             <div className="mt-8 flex flex-col gap-2">
-               <h1 className="text-2xl font-bold text-slate-900">{client!.name}</h1>
-               <div className="flex flex-col gap-1.5 text-sm text-slate-600 mt-2">
-                 <span className="flex items-center gap-2">
-                   <Briefcase className="h-4 w-4 text-slate-400" />
-                   {client!.occupation || 'No Occupation Listed'}
-                 </span>
-                 <span className="flex items-center gap-2">
-                   <User className="h-4 w-4 text-slate-400" />
-                   Age: {client!.age ?? '—'}
-                 </span>
-                 <div className="mt-2">
-                   <div className="flex flex-wrap items-center gap-2">
-                     <span className={`inline-flex rounded-md px-3 py-1 text-xs font-bold uppercase tracking-wider ${getRiskBadgeStyles(client!.risk_profile ?? '')}`}>
-                       {client!.risk_profile || 'Unknown Risk'}
-                     </span>
-                     <span
-                       className={`inline-flex rounded-md px-3 py-1 text-xs font-bold uppercase tracking-wider ${
-                         activeSimulation ? 'bg-red-100 text-red-700' : 'bg-indigo-100 text-indigo-700'
-                       }`}
-                     >
-                       {activeSimulation ? 'Stressed Score' : 'Health Score'}: {displayedScore.toFixed(1)}
-                     </span>
-                     <button
-                       type="button"
-                       onClick={() => setStressOpen(true)}
-                       className="inline-flex items-center rounded-md border border-slate-300 px-3 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-100"
-                     >
-                       <Shield className="mr-1 h-3.5 w-3.5" />
-                       Simulate Risk
-                     </button>
-                   </div>
-                 </div>
-               </div>
+              <h1 className="text-2xl font-bold text-slate-900">{client!.name}</h1>
+              <div className="flex flex-col gap-1.5 text-sm text-slate-600 mt-2">
+                <span className="flex items-center gap-2">
+                  <Briefcase className="h-4 w-4 text-slate-400" />
+                  {client!.occupation || 'No Occupation Listed'}
+                </span>
+                <span className="flex items-center gap-2">
+                  <User className="h-4 w-4 text-slate-400" />
+                  Age: {client!.age ?? '—'}
+                </span>
+                <div className="mt-2">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className={`inline-flex rounded-md px-3 py-1 text-xs font-bold uppercase tracking-wider ${getRiskBadgeStyles(client!.risk_profile ?? '')}`}>
+                      {client!.risk_profile || 'Unknown Risk'}
+                    </span>
+                    <span
+                      className={`inline-flex rounded-md px-3 py-1 text-xs font-bold uppercase tracking-wider ${activeSimulation ? 'bg-red-100 text-red-700' : 'bg-indigo-100 text-indigo-700'
+                        }`}
+                    >
+                      {activeSimulation ? 'Stressed Score' : 'Health Score'}: {displayedScore.toFixed(1)}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setStressOpen(true)}
+                      className="inline-flex items-center rounded-md border border-slate-300 px-3 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-100"
+                    >
+                      <Shield className="mr-1 h-3.5 w-3.5" />
+                      Simulate Risk
+                    </button>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
 
@@ -320,18 +320,16 @@ export default function ClientDetailPage() {
           <button
             type="button"
             onClick={() => setViewMode('VALUE')}
-            className={`rounded-lg px-3 py-1 text-xs font-semibold ${
-              viewMode === 'VALUE' ? 'bg-slate-800 text-white' : 'text-slate-700'
-            }`}
+            className={`rounded-lg px-3 py-1 text-xs font-semibold ${viewMode === 'VALUE' ? 'bg-slate-800 text-white' : 'text-slate-700'
+              }`}
           >
             Market Value
           </button>
           <button
             type="button"
             onClick={() => setViewMode('RETURNS')}
-            className={`rounded-lg px-3 py-1 text-xs font-semibold ${
-              viewMode === 'RETURNS' ? 'bg-slate-800 text-white' : 'text-slate-700'
-            }`}
+            className={`rounded-lg px-3 py-1 text-xs font-semibold ${viewMode === 'RETURNS' ? 'bg-slate-800 text-white' : 'text-slate-700'
+              }`}
           >
             Total Returns
           </button>
@@ -347,10 +345,10 @@ export default function ClientDetailPage() {
 
         {/* 4 Category Blocks */}
         <div className="w-full grid grid-cols-2 md:grid-cols-4 gap-6 mt-8">
-          
-          <div 
-             onClick={() => setActiveTab('stock')}
-             className={`border-2 border-slate-800 rounded-3xl p-4 min-h-[140px] relative cursor-pointer transition-all ${activeTab === 'stock' ? 'bg-slate-100 ring-4 ring-slate-200' : 'bg-white hover:bg-slate-50'}`}
+
+          <div
+            onClick={() => setActiveTab('stock')}
+            className={`border-2 border-slate-800 rounded-3xl p-4 min-h-[140px] relative cursor-pointer transition-all ${activeTab === 'stock' ? 'bg-slate-100 ring-4 ring-slate-200' : 'bg-white hover:bg-slate-50'}`}
           >
             <div className="absolute top-4 w-full text-center left-0 text-sm font-medium tracking-wide">
               Stock
@@ -361,9 +359,9 @@ export default function ClientDetailPage() {
             {activeTab === 'stock' && renderActiveTabData()}
           </div>
 
-          <div 
-             onClick={() => setActiveTab('debt')}
-             className={`border-2 border-slate-800 rounded-3xl p-4 min-h-[140px] relative cursor-pointer transition-all ${activeTab === 'debt' ? 'bg-slate-100 ring-4 ring-slate-200' : 'bg-white hover:bg-slate-50'}`}
+          <div
+            onClick={() => setActiveTab('debt')}
+            className={`border-2 border-slate-800 rounded-3xl p-4 min-h-[140px] relative cursor-pointer transition-all ${activeTab === 'debt' ? 'bg-slate-100 ring-4 ring-slate-200' : 'bg-white hover:bg-slate-50'}`}
           >
             <div className="absolute top-4 w-full text-center left-0 text-sm font-medium tracking-wide">
               Debt
@@ -374,9 +372,9 @@ export default function ClientDetailPage() {
             {activeTab === 'debt' && renderActiveTabData()}
           </div>
 
-          <div 
-             onClick={() => setActiveTab('crypto')}
-             className={`border-2 border-slate-800 rounded-3xl p-4 min-h-[140px] relative cursor-pointer transition-all ${activeTab === 'crypto' ? 'bg-slate-100 ring-4 ring-slate-200' : 'bg-white hover:bg-slate-50'}`}
+          <div
+            onClick={() => setActiveTab('crypto')}
+            className={`border-2 border-slate-800 rounded-3xl p-4 min-h-[140px] relative cursor-pointer transition-all ${activeTab === 'crypto' ? 'bg-slate-100 ring-4 ring-slate-200' : 'bg-white hover:bg-slate-50'}`}
           >
             <div className="absolute top-4 w-full text-center left-0 text-sm font-medium tracking-wide">
               Crypto
@@ -387,9 +385,9 @@ export default function ClientDetailPage() {
             {activeTab === 'crypto' && renderActiveTabData()}
           </div>
 
-          <div 
-             onClick={() => setActiveTab('mutual_fund')}
-             className={`border-2 border-slate-800 rounded-3xl p-4 min-h-[140px] relative cursor-pointer transition-all ${activeTab === 'mutual_fund' ? 'bg-slate-100 ring-4 ring-slate-200' : 'bg-white hover:bg-slate-50'}`}
+          <div
+            onClick={() => setActiveTab('mutual_fund')}
+            className={`border-2 border-slate-800 rounded-3xl p-4 min-h-[140px] relative cursor-pointer transition-all ${activeTab === 'mutual_fund' ? 'bg-slate-100 ring-4 ring-slate-200' : 'bg-white hover:bg-slate-50'}`}
           >
             <div className="absolute top-4 w-full text-center left-0 text-sm font-medium tracking-wide whitespace-nowrap overflow-hidden text-ellipsis px-2">
               Mutual Fund
@@ -409,33 +407,33 @@ export default function ClientDetailPage() {
           </div>
 
           <div className="mt-8 flex flex-col sm:flex-row items-center justify-between gap-6 px-4">
-             <p className="text-sm text-slate-600 flex-1">
-               Generate a personalized AI advisory report and queue it for mailing.
-             </p>
-             <button
-                onClick={handleSendAdvisory}
-                disabled={sendingAdvisory}
-                className="flex items-center gap-2 rounded-xl bg-slate-800 px-6 py-3 text-sm font-semibold text-white hover:bg-slate-700 disabled:opacity-50 shrink-0"
-              >
-                <Send className="h-4 w-4" />
-                {sendingAdvisory ? 'Generating…' : 'Generate Advisory'}
-              </button>
+            <p className="text-sm text-slate-600 flex-1">
+              Generate a personalized AI advisory report and queue it for mailing.
+            </p>
+            <button
+              onClick={handleSendAdvisory}
+              disabled={sendingAdvisory}
+              className="flex items-center gap-2 rounded-xl bg-slate-800 px-6 py-3 text-sm font-semibold text-white hover:bg-slate-700 disabled:opacity-50 shrink-0"
+            >
+              <Send className="h-4 w-4" />
+              {sendingAdvisory ? 'Generating…' : 'Generate Advisory'}
+            </button>
           </div>
 
           {advisoryResult && (
-             <div className="mt-6 border-t-2 border-slate-800 pt-6 px-4">
-                <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">Advisory Generated</p>
-                <p className="mt-2 font-bold text-slate-800 text-lg">{advisoryResult.subject}</p>
-                <p className="mt-2 text-sm text-slate-700 leading-relaxed">{advisoryResult.body}</p>
-                {advisoryResult.advice && (
-                  <div className="mt-4 p-4 bg-slate-50 rounded-xl border border-slate-200">
-                    <p className="text-sm font-medium text-slate-700">💡 {advisoryResult.advice}</p>
-                  </div>
-                )}
-                <p className="mt-4 text-xs font-medium text-emerald-600 bg-emerald-50 inline-flex px-3 py-1 rounded-full">
-                  Status: {advisoryResult.status}
-                </p>
-             </div>
+            <div className="mt-6 border-t-2 border-slate-800 pt-6 px-4">
+              <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">Advisory Generated</p>
+              <p className="mt-2 font-bold text-slate-800 text-lg">{advisoryResult.subject}</p>
+              <p className="mt-2 text-sm text-slate-700 leading-relaxed">{advisoryResult.body}</p>
+              {advisoryResult.advice && (
+                <div className="mt-4 p-4 bg-slate-50 rounded-xl border border-slate-200">
+                  <p className="text-sm font-medium text-slate-700">💡 {advisoryResult.advice}</p>
+                </div>
+              )}
+              <p className="mt-4 text-xs font-medium text-emerald-600 bg-emerald-50 inline-flex px-3 py-1 rounded-full">
+                Status: {advisoryResult.status}
+              </p>
+            </div>
           )}
 
         </div>
