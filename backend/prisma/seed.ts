@@ -2,11 +2,46 @@ import 'dotenv/config';
 import { PrismaPg } from '@prisma/adapter-pg';
 import { PrismaClient } from '@prisma/client';
 import * as bcrypt from 'bcrypt';
+import * as fs from 'fs';
+import * as path from 'path';
 
 const adapter = new PrismaPg({
   connectionString: process.env.DATABASE_URL!,
 });
 const prisma = new PrismaClient({ adapter });
+
+type SeedAsset = {
+  assetType: 'stock' | 'mutual_fund' | 'crypto' | 'debt';
+  assetName: string;
+  value: number;
+};
+
+type SeedClient = {
+  clientCode: number;
+  name: string;
+  age: number;
+  occupation: string;
+  annualIncome: number;
+  monthlyExpense: number;
+  riskProfile: string;
+  investmentHorizon: string;
+  emergencyFund: number;
+  insuranceCoverage: number;
+  portfolioTotalValue: number;
+  portfolioTarget: {
+    stock: number;
+    mutual_fund: number;
+    crypto: number;
+    debt: number;
+  };
+  assets: SeedAsset[];
+};
+
+function loadSeedClients(): SeedClient[] {
+  const seedPath = path.join(__dirname, 'data', 'clients.seed.json');
+  const raw = fs.readFileSync(seedPath, 'utf-8');
+  return JSON.parse(raw) as SeedClient[];
+}
 
 async function main() {
   const hashedPassword = await bcrypt.hash('password123', 10);
@@ -23,13 +58,12 @@ async function main() {
 
   console.log('✅ Advisor created: advisor@finxpert.com');
 
-  // 2. Create Clients with Portfolios
-  const clientsData = [
-    { name: 'Rahul Sharma', age: 34, risk: 'aggressive', income: 1800000, color: 'Stocks' },
-    { name: 'Anita Patel', age: 45, risk: 'moderate', income: 2500000, color: 'Mutual Funds' },
-    { name: 'Kevin Dsouza', age: 28, risk: 'aggressive', income: 1200000, color: 'Crypto' },
-  ];
+  // Keep seed idempotent for this advisor: reset only advisor-scoped data.
+  await prisma.todoItem.deleteMany({ where: { advisor_id: advisor.id } });
+  await prisma.client.deleteMany({ where: { advisor_id: advisor.id } });
 
+  // 2. Create Clients with Portfolios from normalized dataset
+  const clientsData = loadSeedClients();
   const createdClients: { id: string; name: string }[] = [];
 
   for (const data of clientsData) {
@@ -38,62 +72,65 @@ async function main() {
         advisor_id: advisor.id,
         name: data.name,
         age: data.age,
-        occupation: 'Software Engineer',
-        annual_income: data.income,
-        monthly_expense: data.income / 24, // 50% savings rate
-        risk_profile: data.risk,
-        emergency_fund: data.income / 4,
-        insurance_coverage: data.income * 5, // 5x annual income
+        occupation: data.occupation,
+        annual_income: data.annualIncome,
+        monthly_expense: data.monthlyExpense,
+        risk_profile: data.riskProfile,
+        investment_horizon: data.investmentHorizon,
+        emergency_fund: data.emergencyFund,
+        insurance_coverage: data.insuranceCoverage,
         portfolio: {
           create: {
-            total_value: 1000000,
+            total_value: data.portfolioTotalValue,
             assets: {
-              create: [
-                { asset_type: 'stock', asset_name: 'Reliance Industries', value: 400000 },
-                { asset_type: 'mutual_fund', asset_name: 'HDFC Index Fund', value: 300000 },
-                { asset_type: 'crypto', asset_name: 'Bitcoin', value: 200000 },
-                { asset_type: 'debt', asset_name: 'Govt Bonds', value: 100000 },
-              ]
-            }
-          }
+              create: data.assets.map((asset) => ({
+                asset_type: asset.assetType,
+                asset_name: asset.assetName,
+                value: asset.value,
+              })),
+            },
+          },
         },
         portfolioTarget: {
           create: {
-            stock_target: 0.5,
-            mutual_fund_target: 0.3,
-            crypto_target: 0.1,
-            debt_target: 0.1
-          }
-        }
-      }
+            stock_target: data.portfolioTarget.stock,
+            mutual_fund_target: data.portfolioTarget.mutual_fund,
+            crypto_target: data.portfolioTarget.crypto,
+            debt_target: data.portfolioTarget.debt,
+          },
+        },
+      },
     });
     createdClients.push({ id: client.id, name: client.name });
-    console.log(`👤 Created client: ${client.name}`);
+    console.log(`👤 Created client: ${client.name} (${data.clientCode})`);
   }
 
   // 3. Create sample TodoItems for the advisor
+  const client1 = createdClients[0];
+  const client2 = createdClients[1];
+  const client3 = createdClients[2];
   const todoItems = [
     {
       advisor_id: advisor.id,
-      client_id: createdClients[0]?.id,
-      title: 'Review Rahul\'s portfolio rebalancing',
+      client_id: client1?.id,
+      title: `Review ${client1?.name ?? 'client'} portfolio rebalancing`,
       description: 'Check if stock allocation needs adjustment after recent market changes',
       status: 'pending',
       due_date: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000), // 2 days from now
     },
     {
       advisor_id: advisor.id,
-      client_id: createdClients[1]?.id,
-      title: 'Schedule Anita\'s quarterly review',
+      client_id: client2?.id,
+      title: `Schedule ${client2?.name ?? 'client'} quarterly review`,
       description: 'Discuss mutual fund performance and investment horizon',
       status: 'pending',
       due_date: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000), // 5 days
     },
     {
       advisor_id: advisor.id,
-      client_id: createdClients[2]?.id,
-      title: 'Assess Kevin\'s crypto exposure risk',
-      description: 'Kevin has aggressive risk profile with high crypto allocation — needs review',
+      client_id: client3?.id,
+      title: `Assess ${client3?.name ?? 'client'} crypto exposure risk`,
+      description: `${client3?.name ?? 'Client'} has aggressive risk profile with high crypto allocation and needs review`,
       status: 'in_progress',
       due_date: new Date(Date.now() + 1 * 24 * 60 * 60 * 1000), // tomorrow
     },
