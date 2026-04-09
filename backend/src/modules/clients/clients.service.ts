@@ -103,7 +103,44 @@ export class ClientsService {
     });
 
     if (!client) throw new NotFoundException(`Client with ID ${id} not found`);
-    return client;
+
+    // Compute the live normalized health score using the same cross-client
+    // pipeline as findAll, so both endpoints always agree on the number.
+    const formula = await this.formulaService.getForAdvisor(client.advisor_id);
+    const steps = formula.steps as FormulaStep[];
+
+    const allClients = await this.prisma.client.findMany({
+      where: { advisor_id: client.advisor_id },
+      include: { investments: true },
+    });
+
+    const rawPool = allClients.map((c) =>
+      this.healthScoreService.calculateGlobalScore(c, steps).rawScore,
+    );
+    const globalMinRaw = Math.min(...rawPool);
+    const globalMaxRaw = Math.max(...rawPool);
+
+    const clientBreakdown = this.healthScoreService.calculateGlobalScore(client, steps);
+    const normalized =
+      Math.round(
+        this.healthScoreService.normalizeRawScore(
+          clientBreakdown.rawScore,
+          globalMinRaw,
+          globalMaxRaw,
+        ) * 10,
+      ) / 10;
+
+    return {
+      ...client,
+      calculatedHealthScore: normalized,
+      calculatedHealthBreakdown: {
+        ...clientBreakdown,
+        normalizedScore: normalized,
+        globalMinRaw: Math.round(globalMinRaw * 10) / 10,
+        globalMaxRaw: Math.round(globalMaxRaw * 10) / 10,
+        weightedTotal: normalized,
+      },
+    };
   }
 
   async create(data: { advisorId: string; [key: string]: unknown }) {

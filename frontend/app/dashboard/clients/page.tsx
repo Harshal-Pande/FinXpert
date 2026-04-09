@@ -23,22 +23,23 @@ function formatInr(value: number): string {
   }).format(value ?? 0);
 }
 
+// Health score badge/label helpers — identical thresholds used on ALL pages.
 function getHealthScoreBadge(score?: number): string {
-  if (score == null) return 'bg-slate-100 text-slate-600';
-  if (score < 4) return 'bg-red-100 text-red-700';
-  if (score < 6) return 'bg-orange-100 text-orange-700';
-  if (score < 8) return 'bg-yellow-100 text-yellow-700';
-  if (score < 9.5) return 'bg-lime-100 text-lime-700';
+  if (score == null) return 'bg-slate-100 text-slate-500';
+  if (score < 4)   return 'bg-red-100 text-red-700';
+  if (score < 6)   return 'bg-orange-100 text-orange-700';
+  if (score < 7)   return 'bg-yellow-100 text-yellow-700';
+  if (score < 8.5) return 'bg-lime-100 text-lime-700';
   return 'bg-emerald-100 text-emerald-700';
 }
 
 function getHealthScoreLabel(score?: number): string {
   if (score == null) return 'N/A';
-  if (score < 4) return 'POOR';
-  if (score < 6) return 'WEAK';
-  if (score < 8) return 'MODERATE';
-  if (score < 9.5) return 'GOOD';
-  return 'EXCELLENT';
+  if (score < 4)   return 'Poor';
+  if (score < 6)   return 'Weak';
+  if (score < 7)   return 'Moderate';
+  if (score < 8.5) return 'Good';
+  return 'Excellent';
 }
 
 const RISK_OPTIONS = [
@@ -208,11 +209,16 @@ export default function ClientsPage() {
                             )}
                           </td>
                           <td className="px-4 py-4 text-center">
-                            <span
-                              className={`inline-flex rounded-full px-2.5 py-1 text-[11px] font-bold ${getHealthScoreBadge(client.calculatedHealthScore)}`}
-                            >
-                              {client.calculatedHealthScore?.toFixed(1) ?? '—'} {getHealthScoreLabel(client.calculatedHealthScore)}
-                            </span>
+                            {client.calculatedHealthScore != null ? (
+                              <span
+                                className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-bold ${getHealthScoreBadge(client.calculatedHealthScore)}`}
+                              >
+                                <span className="font-mono">{client.calculatedHealthScore.toFixed(1)}</span>
+                                <span>{getHealthScoreLabel(client.calculatedHealthScore)}</span>
+                              </span>
+                            ) : (
+                              <span className="text-xs text-slate-400">—</span>
+                            )}
                           </td>
                         </tr>
                       ))}

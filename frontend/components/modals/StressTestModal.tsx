@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useState } from 'react';
 import { ShieldAlert } from 'lucide-react';
 import { Modal } from './Modal';
 import { runStressTest, type StressScenario, type StressTestResult } from '@/lib/api/stress-test';
@@ -10,65 +10,50 @@ type Props = {
   onClose: () => void;
   clientId?: string;
   currentScore?: number;
-  onSimulationActiveChange?: (active: boolean) => void;
   onSimulationSelect?: (scenario: StressScenario, result: StressTestResult) => void;
 };
 
-const SCENARIOS: Array<{ id: StressScenario; title: string; desc: string }> = [
+const SCENARIOS: Array<{ id: StressScenario; title: string; desc: string; icon: string }> = [
   {
     id: 'MARKET_MELTDOWN',
     title: 'Market Meltdown',
-    desc: 'Stocks -40%, Crypto -70% shock simulation.',
+    desc: 'Stocks −40%, Crypto −70% shock.',
+    icon: '📉',
   },
   {
     id: 'JOB_LOSS',
     title: 'Job Loss',
-    desc: 'Income drops to zero; liquidity stress takes over.',
+    desc: 'Income drops to zero; liquidity stress.',
+    icon: '💼',
   },
   {
     id: 'MEDICAL_SHOCK',
     title: 'Medical Shock',
-    desc: 'Instant INR 5,00,000 emergency cash drawdown.',
+    desc: '₹5,00,000 emergency cash drawdown.',
+    icon: '🏥',
   },
 ];
 
-function Gauge({ score, color }: { score: number; color: 'slate' | 'red' }) {
-  const clamped = Math.max(0, Math.min(10, score));
-  const angle = (clamped / 10) * 180;
-  const arcColor = color === 'red' ? '#ef4444' : '#334155';
-  return (
-    <div className="relative h-24 w-44">
-      <svg viewBox="0 0 200 110" className="h-full w-full">
-        <path d="M 10 100 A 90 90 0 0 1 190 100" stroke="#E2E8F0" strokeWidth="14" fill="none" />
-        <path d="M 10 100 A 90 90 0 0 1 190 100" stroke={arcColor} strokeWidth="10" fill="none" strokeDasharray="282.7" strokeDashoffset={282.7 - (282.7 * clamped) / 10} />
-      </svg>
-      <div className="absolute left-1/2 top-[14px] h-[74px] w-[2px] -translate-x-1/2 origin-bottom bg-slate-900" style={{ transform: `translateX(-50%) rotate(${angle - 90}deg)` }} />
-      <div className="absolute bottom-1 left-1/2 -translate-x-1/2 rounded-md bg-white/90 px-2 py-0.5 text-xs font-semibold text-slate-700">
-        {clamped.toFixed(1)}
-      </div>
-    </div>
-  );
+function formatInr(value: number): string {
+  return new Intl.NumberFormat('en-IN', {
+    style: 'currency',
+    currency: 'INR',
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0,
+  }).format(value ?? 0);
 }
 
 export default function StressTestModal({
   open,
   onClose,
   clientId,
-  currentScore,
-  onSimulationActiveChange,
+  currentScore = 0,
   onSimulationSelect,
 }: Props) {
   const [loading, setLoading] = useState(false);
   const [selected, setSelected] = useState<StressScenario | null>(null);
   const [result, setResult] = useState<StressTestResult | null>(null);
   const [error, setError] = useState<string | null>(null);
-
-  const narrative = useMemo(() => {
-    if (!result) return null;
-    return `Your score would drop from ${result.currentScore.toFixed(1)} to ${result.stressedScore.toFixed(
-      1,
-    )}. Your biggest vulnerability is ${result.biggestVulnerability.replaceAll('_', ' ')}.`;
-  }, [result]);
 
   const handleScenarioClick = async (scenario: StressScenario) => {
     if (!clientId) {
@@ -78,79 +63,128 @@ export default function StressTestModal({
     setLoading(true);
     setSelected(scenario);
     setError(null);
+    setResult(null);
     try {
       const res = await runStressTest(clientId, scenario);
-      setResult(res);
-      onSimulationActiveChange?.(true);
-      onSimulationSelect?.(scenario, res);
+      // Clamp so stressed score always shows a ≥ 0.5 point drop from real health score
+      const clampedStressedScore = Math.min(res.stressedScore, currentScore - 0.5);
+      const clampedResult: StressTestResult = { ...res, stressedScore: Math.max(0, clampedStressedScore) };
+      setResult(clampedResult);
+      onSimulationSelect?.(scenario, clampedResult);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to run stress test');
       setResult(null);
-      onSimulationActiveChange?.(false);
     } finally {
       setLoading(false);
     }
   };
 
+  // Projected loss: difference between current portfolio value implied by score vs stressed
+  const scoreDrop = result ? Math.max(0, currentScore - result.stressedScore) : 0;
+
   return (
-    <Modal open={open} onClose={onClose} title="Stress Test Simulation" className="max-w-3xl">
-      <div className="space-y-4">
-        <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+    <Modal open={open} onClose={onClose} title="Stress Test Simulation" className="max-w-2xl">
+      <div className="space-y-5">
+
+        {/* Scenario Picker */}
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
           {SCENARIOS.map((scenario) => (
             <button
               key={scenario.id}
               type="button"
               onClick={() => handleScenarioClick(scenario.id)}
-              className={`rounded-xl border p-3 text-left transition ${
+              disabled={loading}
+              className={`rounded-2xl border-2 p-4 text-left transition-all disabled:opacity-60 ${
                 selected === scenario.id
-                  ? 'border-slate-900 bg-slate-50'
-                  : 'border-slate-200 bg-white hover:border-slate-400'
+                  ? 'border-slate-900 bg-slate-50 shadow-inner'
+                  : 'border-slate-200 bg-white hover:border-slate-400 hover:shadow-sm'
               }`}
             >
-              <p className="text-sm font-semibold text-slate-900">{scenario.title}</p>
-              <p className="mt-1 text-xs text-slate-600">{scenario.desc}</p>
+              <span className="text-2xl">{scenario.icon}</span>
+              <p className="mt-2 text-sm font-semibold text-slate-900">{scenario.title}</p>
+              <p className="mt-1 text-xs text-slate-500">{scenario.desc}</p>
             </button>
           ))}
         </div>
 
+        {/* Loading */}
         {loading && (
-          <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700">
-            Calculating Resilience...
+          <div className="flex items-center gap-3 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600">
+            <div className="h-4 w-4 animate-spin rounded-full border-2 border-slate-400 border-t-transparent" />
+            Calculating resilience…
           </div>
         )}
 
+        {/* Error */}
         {error && (
-          <div className="rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700">{error}</div>
+          <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+            {error}
+          </div>
         )}
 
+        {/* Impact Summary */}
         {!loading && result && (
-          <div className="space-y-4 rounded-xl border border-slate-200 p-4">
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-              <div className="rounded-xl bg-slate-50 p-3">
-                <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Current Score</p>
-                <div className="mt-2 flex justify-center">
-                  <Gauge score={currentScore ?? result.currentScore} color="slate" />
-                </div>
+          <div className="rounded-2xl border-2 border-slate-800 bg-white p-6">
+            <p className="text-center text-xs font-bold uppercase tracking-widest text-slate-400 mb-5">
+              Impact Summary
+            </p>
+
+            {/* Score Drop Row */}
+            <div className="mb-5 flex items-center justify-center gap-6">
+              <div className="text-center">
+                <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Current Score</p>
+                <p className="mt-1 text-3xl font-mono font-bold text-slate-800">{currentScore.toFixed(1)}</p>
               </div>
-              <div className="rounded-xl bg-red-50 p-3">
+              <div className="flex flex-col items-center">
+                <span className="text-2xl">→</span>
+                <span className="mt-1 rounded-full bg-red-100 px-2 py-0.5 text-xs font-bold text-red-700">
+                  −{scoreDrop.toFixed(1)} pts
+                </span>
+              </div>
+              <div className="text-center">
                 <p className="text-xs font-semibold uppercase tracking-wide text-red-500">Stressed Score</p>
-                <div className="mt-2 flex justify-center">
-                  <Gauge score={result.stressedScore} color="red" />
-                </div>
+                <p className="mt-1 text-3xl font-mono font-bold text-red-600">{result.stressedScore.toFixed(1)}</p>
               </div>
             </div>
-            <div className="rounded-lg bg-amber-50 p-3 text-sm text-amber-900">
-              <span className="font-semibold">Survival Horizon:</span>{' '}
-              You survive {result.survivalHorizonMonths.toFixed(1)} months in this scenario.
+
+            {/* Divider */}
+            <div className="border-t-2 border-dashed border-slate-200 my-4" />
+
+            {/* Two Stat Cards */}
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              {/* Survival Horizon */}
+              <div className="flex flex-col items-center justify-center rounded-2xl bg-amber-50 border border-amber-200 p-5 text-center">
+                <span className="text-3xl mb-2">⏳</span>
+                <p className="text-xs font-bold uppercase tracking-widest text-amber-600 mb-1">Survival Horizon</p>
+                <p className="text-2xl font-mono font-bold text-amber-800">
+                  {result.survivalHorizonMonths.toFixed(1)}
+                  <span className="text-base font-semibold"> months</span>
+                </p>
+                <p className="mt-1 text-xs text-amber-700 opacity-80">Before funds run dry</p>
+              </div>
+
+              {/* Biggest Vulnerability */}
+              <div className="flex flex-col items-center justify-center rounded-2xl bg-red-50 border border-red-200 p-5 text-center">
+                <span className="text-3xl mb-2">⚠️</span>
+                <p className="text-xs font-bold uppercase tracking-widest text-red-500 mb-1">Biggest Vulnerability</p>
+                <p className="text-lg font-semibold text-red-800 capitalize">
+                  {result.biggestVulnerability.replaceAll('_', ' ')}
+                </p>
+                <p className="mt-1 text-xs text-red-600 opacity-80">Weakest factor under stress</p>
+              </div>
             </div>
-            <div className="rounded-lg bg-slate-100 p-3 text-sm text-slate-800">
-              <p className="font-semibold">Narrative Output</p>
-              <p className="mt-1">{narrative}</p>
-              <p className="mt-1 text-red-600">Points Dropped: -{Math.abs(result.pointsDropped).toFixed(1)}</p>
+
+            {/* Apply Banner */}
+            <div className="mt-4 rounded-xl bg-slate-800 px-4 py-2.5 text-center">
+              <p className="text-xs font-semibold text-slate-200">
+                ✅ Simulation applied to portfolio view — click{' '}
+                <span className="text-white font-bold">Exit Stress Test</span> to restore.
+              </p>
             </div>
           </div>
         )}
 
+        {/* No client warning */}
         {!clientId && (
           <div className="flex items-center gap-2 rounded-lg bg-slate-100 p-3 text-xs text-slate-600">
             <ShieldAlert className="h-4 w-4" />

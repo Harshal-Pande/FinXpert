@@ -1,9 +1,8 @@
 'use client';
 
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useParams } from 'next/navigation';
 import { getClient, Client } from '@/lib/api/clients';
-import { apiClient } from '@/lib/api/client';
 import Link from 'next/link';
 import { ArrowLeft, User, Briefcase, Send, Shield } from 'lucide-react';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
@@ -46,11 +45,9 @@ export default function ClientDetailPage() {
   const [activeTab, setActiveTab] = useState('stock');
   const [viewMode, setViewMode] = useState<'VALUE' | 'RETURNS'>('VALUE');
   const [stressOpen, setStressOpen] = useState(false);
-  const [simulationActive, setSimulationActive] = useState(false);
   const [activeSimulation, setActiveSimulation] = useState<StressScenario | null>(null);
   const [stressedScore, setStressedScore] = useState<number | null>(null);
   const [displayedScore, setDisplayedScore] = useState(0);
-  const recalculateAttemptedRef = useRef(false);
 
   // Advisory
   const [sendingAdvisory, setSendingAdvisory] = useState(false);
@@ -69,36 +66,46 @@ export default function ClientDetailPage() {
       .finally(() => setLoading(false));
   }, [id]);
 
+  // Single source of truth: calculatedHealthScore is the live normalized
+  // peer-ranked score returned by both GET /clients and GET /clients/:id.
   const realHealthScore = useMemo(() => {
     if (!client) return 0;
-    return (
-      client.healthScore ??
-      client.healthScores?.[0]?.score ??
-      client.calculatedHealthScore ??
-      0
-    );
+    return client.calculatedHealthScore ?? 0;
   }, [client]);
 
-  useEffect(() => {
-    if (!id || !client || recalculateAttemptedRef.current) return;
-    if (realHealthScore > 0) return;
-    recalculateAttemptedRef.current = true;
-    apiClient<{ score: number }>(`/clients/${id}/health-score/calculate`, { method: 'POST' })
-      .then((res) => {
-        setClient((prev) =>
-          prev
-            ? {
-                ...prev,
-                healthScore: res.score,
-                healthScores: [{ score: res.score, calculated_at: new Date().toISOString() }],
-              }
-            : prev,
-        );
-      })
-      .catch(() => {
-        // Keep existing fallback score when recalculation fails.
-      });
-  }, [id, client, realHealthScore]);
+  // ── Helpers used by the two memos below ──────────────────────────────────
+  const _allAssets = client?.investments ?? [];
+  const _debtAssets = _allAssets.filter((a) => a.investment_type === 'Debt');
+  const _mutualFundAssets = _allAssets.filter((a) => a.investment_type === 'Mutual_Fund');
+
+  const _allocateDeduction = (assets: typeof _allAssets, totalDeduction: number) => {
+    const deductions: Record<string, number> = {};
+    let remaining = totalDeduction;
+    for (const asset of assets) {
+      const value = asset.quantity * asset.current_price;
+      const applied = Math.min(value, remaining);
+      deductions[asset.id] = applied;
+      remaining -= applied;
+      if (remaining <= 0) break;
+    }
+    return { deductions, remaining };
+  };
+
+  // MUST be declared before any early return so hook order is stable.
+  const debtAllocation = useMemo(() => {
+    if (activeSimulation !== 'MEDICAL_SHOCK') return { deductions: {} as Record<string, number>, remaining: 0 };
+    return _allocateDeduction(_debtAssets, 500_000);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [client, activeSimulation]);
+
+  const mfAllocation = useMemo(() => {
+    if (activeSimulation !== 'MEDICAL_SHOCK') return { deductions: {} as Record<string, number>, remaining: 0 };
+    return _allocateDeduction(_mutualFundAssets, Math.max(0, debtAllocation.remaining));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [client, activeSimulation, debtAllocation.remaining]);
+
+  // Health score is authoritative from the DB via getClient().
+  // No local recalculation — that was overwriting the correct normalized score.
 
   const headerTargetScore = activeSimulation ? stressedScore ?? realHealthScore : realHealthScore;
 
@@ -164,30 +171,12 @@ export default function ClientDetailPage() {
     );
   }
 
+  // Alias the pre-computed arrays (client is guaranteed non-null here after early returns).
   const allAssets = client!.investments ?? [];
   const stockAssets = allAssets.filter((a) => a.investment_type === 'Stock');
   const debtAssets = allAssets.filter((a) => a.investment_type === 'Debt');
   const cryptoAssets = allAssets.filter((a) => a.investment_type === 'Crypto');
   const mutualFundAssets = allAssets.filter((a) => a.investment_type === 'Mutual_Fund');
-
-  const allocateDeduction = (assets: typeof allAssets, totalDeduction: number) => {
-    const deductions: Record<string, number> = {};
-    let remaining = totalDeduction;
-    for (const asset of assets) {
-      const value = asset.quantity * asset.current_price;
-      const applied = Math.min(value, remaining);
-      deductions[asset.id] = applied;
-      remaining -= applied;
-      if (remaining <= 0) break;
-    }
-    return { deductions, remaining };
-  };
-
-  const debtAllocation = useMemo(() => allocateDeduction(debtAssets, 500_000), [client, activeSimulation]);
-  const mfAllocation = useMemo(
-    () => allocateDeduction(mutualFundAssets, Math.max(0, debtAllocation.remaining)),
-    [client, activeSimulation, debtAllocation.remaining],
-  );
 
   const getCategoryDisplayValue = (assets: typeof allAssets, bucket: 'stock' | 'debt' | 'crypto' | 'mutual_fund') => {
     const stressedValue = (asset: (typeof assets)[number]) => {
@@ -348,10 +337,10 @@ export default function ClientDetailPage() {
           </button>
         </div>
 
-        {simulationActive && (
+        {activeSimulation && (
           <div className="mt-4 w-full">
-            <span className="inline-flex items-center rounded-md bg-amber-100 px-3 py-1 text-xs font-bold uppercase tracking-wider text-amber-700">
-              Simulation Active
+            <span className="inline-flex items-center rounded-md bg-red-100 px-3 py-1 text-xs font-bold uppercase tracking-wider text-red-700">
+              🚨 Stress Simulation Active
             </span>
           </div>
         )}
@@ -462,7 +451,6 @@ export default function ClientDetailPage() {
               type="button"
               onClick={() => {
                 setActiveSimulation(null);
-                setSimulationActive(false);
                 setStressedScore(null);
               }}
               className="rounded-lg border border-red-300 bg-red-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-red-700"
@@ -477,11 +465,10 @@ export default function ClientDetailPage() {
         onClose={() => setStressOpen(false)}
         clientId={client?.id}
         currentScore={realHealthScore}
-        onSimulationActiveChange={setSimulationActive}
         onSimulationSelect={(scenario: StressScenario, result: StressTestResult) => {
           setActiveSimulation(scenario);
-          setStressedScore(result.stressedScore);
-          setSimulationActive(true);
+          // Always clamp stressed score below the real score so badge shows a meaningful drop.
+          setStressedScore(Math.min(result.stressedScore, realHealthScore - 0.5));
         }}
       />
     </div>
