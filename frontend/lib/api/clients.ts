@@ -53,6 +53,18 @@ export interface ListClientsResponse {
   total: number;
 }
 
+export interface CreateClientPayload {
+  name: string;
+  age: number;
+  occupation: string;
+  annual_income: number;
+  monthly_expense: number;
+  emergency_fund?: number;
+  insurance_coverage?: number;
+  risk_profile?: 'conservative' | 'moderate' | 'aggressive' | 'passive';
+  investment_horizon?: 'short' | 'medium' | 'long';
+}
+
 export function listClients(params?: { limit?: number; search?: string; riskProfile?: string }) {
   const query = new URLSearchParams();
   if (params?.limit) query.set('limit', String(params.limit));
@@ -65,4 +77,11 @@ export function listClients(params?: { limit?: number; search?: string; riskProf
 // Ensure this matches your NestJS @Get(':id') route
 export function getClient(id: string) {
   return apiClient<Client>(`/clients/${id}`);
+}
+
+export function createClient(payload: CreateClientPayload) {
+  return apiClient<Client>('/clients', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
 }

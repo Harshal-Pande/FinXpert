@@ -1,10 +1,16 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { FormEvent, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Users, Search, Filter } from 'lucide-react';
-import { listClients, Client, ListClientsResponse } from '@/lib/api/clients';
+import { Users, Search, Plus } from 'lucide-react';
+import {
+  createClient,
+  listClients,
+  Client,
+  ListClientsResponse,
+  CreateClientPayload,
+} from '@/lib/api/clients';
 
 function getRiskBadgeStyles(riskProfile: string): string {
   const r = (riskProfile ?? '').toLowerCase();
@@ -55,21 +61,30 @@ export default function ClientsPage() {
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [savingClient, setSavingClient] = useState(false);
+  const [addClientError, setAddClientError] = useState<string | null>(null);
+  const [addClientForm, setAddClientForm] = useState({
+    name: '',
+    age: '',
+    occupation: '',
+    annual_income: '',
+    monthly_expense: '',
+    emergency_fund: '',
+    insurance_coverage: '',
+    risk_profile: 'moderate',
+    investment_horizon: 'long',
+  });
 
   // Search & filter state
   const [search, setSearch] = useState('');
   const [riskFilter, setRiskFilter] = useState('');
   const [searchInput, setSearchInput] = useState('');
 
-  // Fetch when search/filter changes
-  useEffect(() => {
+  const loadClients = () => {
     setLoading(true);
     setError(null);
 
-    const params: Record<string, string> = { limit: '100' };
-    if (search) params.search = search;
-    if (riskFilter) params.riskProfile = riskFilter;
-    
     listClients({ limit: 100, search, riskProfile: riskFilter } as any)
       .then((res: ListClientsResponse) => {
         setClients(res?.items ?? []);
@@ -82,6 +97,11 @@ export default function ClientsPage() {
       .finally(() => {
         setLoading(false);
       });
+  };
+
+  // Fetch when search/filter changes
+  useEffect(() => {
+    loadClients();
   }, [search, riskFilter]);
 
   const handleSearch = () => {
@@ -94,6 +114,57 @@ export default function ClientsPage() {
     setRiskFilter('');
   };
 
+  const closeModal = () => {
+    if (savingClient) return;
+    setShowAddModal(false);
+    setAddClientError(null);
+  };
+
+  const handleCreateClient = async (e: FormEvent) => {
+    e.preventDefault();
+    setAddClientError(null);
+    setSavingClient(true);
+
+    try {
+      const payload: CreateClientPayload = {
+        name: addClientForm.name.trim(),
+        age: Number(addClientForm.age),
+        occupation: addClientForm.occupation.trim(),
+        annual_income: Number(addClientForm.annual_income),
+        monthly_expense: Number(addClientForm.monthly_expense),
+        risk_profile: addClientForm.risk_profile as CreateClientPayload['risk_profile'],
+        investment_horizon:
+          addClientForm.investment_horizon as CreateClientPayload['investment_horizon'],
+      };
+
+      if (addClientForm.emergency_fund.trim()) {
+        payload.emergency_fund = Number(addClientForm.emergency_fund);
+      }
+      if (addClientForm.insurance_coverage.trim()) {
+        payload.insurance_coverage = Number(addClientForm.insurance_coverage);
+      }
+
+      await createClient(payload);
+      setShowAddModal(false);
+      setAddClientForm({
+        name: '',
+        age: '',
+        occupation: '',
+        annual_income: '',
+        monthly_expense: '',
+        emergency_fund: '',
+        insurance_coverage: '',
+        risk_profile: 'moderate',
+        investment_horizon: 'long',
+      });
+      loadClients();
+    } catch (err) {
+      setAddClientError(err instanceof Error ? err.message : 'Failed to create client');
+    } finally {
+      setSavingClient(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-slate-50 p-8 flex flex-col items-center font-sans text-slate-800">
       
@@ -103,6 +174,15 @@ export default function ClientsPage() {
         <div className="absolute -top-4 left-10 bg-white px-2 text-xl font-medium tracking-wide">
           All Clients
         </div>
+
+        <button
+          type="button"
+          onClick={() => setShowAddModal(true)}
+          className="absolute -top-4 right-10 inline-flex items-center gap-2 rounded-full border-2 border-slate-800 bg-white px-3 py-1.5 text-xs font-semibold uppercase tracking-wide hover:bg-slate-50"
+        >
+          <Plus className="h-3.5 w-3.5" />
+          Add Client
+        </button>
 
         {/* Box: Search And Filter */}
         <div className="border-2 border-slate-800 rounded-3xl px-6 py-4 w-full max-w-2xl relative bg-white mt-4 flex items-center justify-center gap-4">
@@ -239,6 +319,143 @@ export default function ClientsPage() {
         </div>
 
       </div>
+
+      {showAddModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="w-full max-w-2xl rounded-2xl border-2 border-slate-800 bg-white p-6 shadow-xl">
+            <div className="mb-4 flex items-center justify-between">
+              <h2 className="text-lg font-semibold">Add New Client</h2>
+              <button
+                type="button"
+                onClick={closeModal}
+                className="rounded-md border border-slate-300 px-2 py-1 text-xs text-slate-600 hover:bg-slate-50"
+              >
+                Close
+              </button>
+            </div>
+
+            <form onSubmit={handleCreateClient} className="space-y-4">
+              <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                <input
+                  required
+                  placeholder="Client Name"
+                  value={addClientForm.name}
+                  onChange={(e) => setAddClientForm((p) => ({ ...p, name: e.target.value }))}
+                  className="rounded-xl border border-slate-300 px-3 py-2 text-sm focus:border-slate-800 focus:outline-none"
+                />
+                <input
+                  required
+                  type="number"
+                  min={1}
+                  max={120}
+                  placeholder="Age"
+                  value={addClientForm.age}
+                  onChange={(e) => setAddClientForm((p) => ({ ...p, age: e.target.value }))}
+                  className="rounded-xl border border-slate-300 px-3 py-2 text-sm focus:border-slate-800 focus:outline-none"
+                />
+                <input
+                  required
+                  placeholder="Occupation"
+                  value={addClientForm.occupation}
+                  onChange={(e) => setAddClientForm((p) => ({ ...p, occupation: e.target.value }))}
+                  className="rounded-xl border border-slate-300 px-3 py-2 text-sm focus:border-slate-800 focus:outline-none"
+                />
+                <select
+                  value={addClientForm.risk_profile}
+                  onChange={(e) => setAddClientForm((p) => ({ ...p, risk_profile: e.target.value }))}
+                  className="rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm focus:border-slate-800 focus:outline-none"
+                >
+                  <option value="conservative">Conservative</option>
+                  <option value="moderate">Moderate</option>
+                  <option value="aggressive">Aggressive</option>
+                  <option value="passive">Passive</option>
+                </select>
+                <input
+                  required
+                  type="number"
+                  min={0}
+                  placeholder="Annual Income (INR)"
+                  value={addClientForm.annual_income}
+                  onChange={(e) => setAddClientForm((p) => ({ ...p, annual_income: e.target.value }))}
+                  className="rounded-xl border border-slate-300 px-3 py-2 text-sm focus:border-slate-800 focus:outline-none"
+                />
+                <input
+                  required
+                  type="number"
+                  min={0}
+                  placeholder="Monthly Expense (INR)"
+                  value={addClientForm.monthly_expense}
+                  onChange={(e) =>
+                    setAddClientForm((p) => ({ ...p, monthly_expense: e.target.value }))
+                  }
+                  className="rounded-xl border border-slate-300 px-3 py-2 text-sm focus:border-slate-800 focus:outline-none"
+                />
+                <input
+                  type="number"
+                  min={0}
+                  placeholder="Emergency Fund (optional)"
+                  value={addClientForm.emergency_fund}
+                  onChange={(e) =>
+                    setAddClientForm((p) => ({ ...p, emergency_fund: e.target.value }))
+                  }
+                  className="rounded-xl border border-slate-300 px-3 py-2 text-sm focus:border-slate-800 focus:outline-none"
+                />
+                <input
+                  type="number"
+                  min={0}
+                  placeholder="Insurance Coverage (optional)"
+                  value={addClientForm.insurance_coverage}
+                  onChange={(e) =>
+                    setAddClientForm((p) => ({ ...p, insurance_coverage: e.target.value }))
+                  }
+                  className="rounded-xl border border-slate-300 px-3 py-2 text-sm focus:border-slate-800 focus:outline-none"
+                />
+              </div>
+
+              <div>
+                <label className="mb-1 block text-xs font-medium text-slate-600">
+                  Investment Horizon
+                </label>
+                <select
+                  value={addClientForm.investment_horizon}
+                  onChange={(e) =>
+                    setAddClientForm((p) => ({ ...p, investment_horizon: e.target.value }))
+                  }
+                  className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm focus:border-slate-800 focus:outline-none"
+                >
+                  <option value="short">Short</option>
+                  <option value="medium">Medium</option>
+                  <option value="long">Long</option>
+                </select>
+              </div>
+
+              {addClientError && (
+                <div className="rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+                  {addClientError}
+                </div>
+              )}
+
+              <div className="flex justify-end gap-2 pt-1">
+                <button
+                  type="button"
+                  onClick={closeModal}
+                  disabled={savingClient}
+                  className="rounded-xl border border-slate-300 px-4 py-2 text-sm text-slate-600 hover:bg-slate-50 disabled:opacity-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={savingClient}
+                  className="rounded-xl bg-slate-800 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-700 disabled:opacity-50"
+                >
+                  {savingClient ? 'Saving...' : 'Create Client'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

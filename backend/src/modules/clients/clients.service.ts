@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../database/prisma.service';
 import { UpdateClientDto } from './dto/update-client.dto';
 import { HealthScoreService } from '../health-score/health-score.service';
@@ -145,12 +145,33 @@ export class ClientsService {
 
   async create(data: { advisorId: string; [key: string]: unknown }) {
     const { advisorId, ...rest } = data;
+    const resolvedAdvisorId = await this.resolveAdvisorId(advisorId);
+
     return this.prisma.client.create({
       data: {
         ...rest,
-        advisor_id: advisorId,
+        advisor_id: resolvedAdvisorId,
       } as any,
     });
+  }
+
+  private async resolveAdvisorId(advisorId?: string): Promise<string> {
+    if (advisorId && advisorId !== 'undefined' && advisorId !== 'null') {
+      return advisorId;
+    }
+
+    const fallbackAdvisor = await this.prisma.advisor.findFirst({
+      orderBy: { created_at: 'asc' },
+      select: { id: true },
+    });
+
+    if (!fallbackAdvisor) {
+      throw new BadRequestException(
+        'No advisor exists yet. Seed or create an advisor before adding clients.',
+      );
+    }
+
+    return fallbackAdvisor.id;
   }
 
   async update(id: string, data: UpdateClientDto) {
