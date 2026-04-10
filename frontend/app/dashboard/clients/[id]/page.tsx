@@ -4,10 +4,17 @@ import { useEffect, useMemo, useState } from 'react';
 import { useParams } from 'next/navigation';
 import { getClient, Client } from '@/lib/api/clients';
 import { apiClient } from '@/lib/api/client';
+import { getClientHistory, type PortfolioSnapshot } from '@/lib/api/portfolio-history';
 import Link from 'next/link';
-import { ArrowLeft, User, Briefcase, Send, Shield } from 'lucide-react';
-import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import { User, Briefcase, Send, Shield } from 'lucide-react';
+import {
+  AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip,
+  ResponsiveContainer,
+} from 'recharts';
+import { toast } from 'sonner';
+import Breadcrumb from '@/components/layout/Breadcrumb';
 import AssetCard from '@/components/portfolio/AssetCard';
+import AssetVault from '@/components/portfolio/AssetVault';
 import StressTestModal from '@/components/modals/StressTestModal';
 import { StressScenario, StressTestResult } from '@/lib/api/stress-test';
 
@@ -28,14 +35,6 @@ function formatInr(value: number): string {
   }).format(value ?? 0);
 }
 
-const mockChartData = [
-  { month: 'Jan', value: 4000 },
-  { month: 'Feb', value: 3000 },
-  { month: 'Mar', value: 5000 },
-  { month: 'Apr', value: 4500 },
-  { month: 'May', value: 6000 },
-  { month: 'Jun', value: 6500 },
-];
 
 export default function ClientDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -43,12 +42,12 @@ export default function ClientDetailPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const [activeTab, setActiveTab] = useState('stock');
   const [viewMode, setViewMode] = useState<'VALUE' | 'RETURNS'>('VALUE');
   const [stressOpen, setStressOpen] = useState(false);
   const [activeSimulation, setActiveSimulation] = useState<StressScenario | null>(null);
   const [stressedScore, setStressedScore] = useState<number | null>(null);
   const [displayedScore, setDisplayedScore] = useState(0);
+  const [historyData, setHistoryData] = useState<PortfolioSnapshot[]>([]);
 
   // Advisory
   const [sendingAdvisory, setSendingAdvisory] = useState(false);
@@ -65,6 +64,8 @@ export default function ClientDetailPage() {
       .then(setClient)
       .catch((err) => setError(err instanceof Error ? err.message : 'Failed to load client'))
       .finally(() => setLoading(false));
+    // Fetch portfolio history in parallel
+    getClientHistory(id).then(setHistoryData).catch(() => {});
   }, [id]);
 
   // Single source of truth: calculatedHealthScore is the live normalized
@@ -172,77 +173,15 @@ export default function ClientDetailPage() {
     );
   }
 
-  // Alias the pre-computed arrays (client is guaranteed non-null here after early returns).
-  const allAssets = client!.investments ?? [];
-  const stockAssets = allAssets.filter((a) => a.investment_type === 'Stock');
-  const debtAssets = allAssets.filter((a) => a.investment_type === 'Debt');
-  const cryptoAssets = allAssets.filter((a) => a.investment_type === 'Crypto');
-  const mutualFundAssets = allAssets.filter((a) => a.investment_type === 'Mutual_Fund');
 
-  const getCategoryDisplayValue = (assets: typeof allAssets, bucket: 'stock' | 'debt' | 'crypto' | 'mutual_fund') => {
-    const stressedValue = (asset: (typeof assets)[number]) => {
-      const base = asset.quantity * asset.current_price;
-      if (activeSimulation === 'MARKET_MELTDOWN') {
-        if (asset.investment_type === 'Stock') return base * 0.6;
-        if (asset.investment_type === 'Crypto') return base * 0.3;
-      }
-      if (activeSimulation === 'MEDICAL_SHOCK') {
-        if (bucket === 'debt') return Math.max(0, base - (debtAllocation.deductions[asset.id] ?? 0));
-        if (bucket === 'mutual_fund') return Math.max(0, base - (mfAllocation.deductions[asset.id] ?? 0));
-      }
-      return base;
-    };
-    if (viewMode === 'VALUE') {
-      return assets.reduce((sum, asset) => sum + stressedValue(asset), 0);
-    }
-    return assets.reduce((sum, asset) => {
-      const stressed = stressedValue(asset);
-      const invested = asset.quantity * asset.buy_rate;
-      return sum + (stressed - invested);
-    }, 0);
-  };
-
-  const renderActiveTabData = () => {
-    let assets = stockAssets;
-    if (activeTab === 'debt') assets = debtAssets;
-    if (activeTab === 'crypto') assets = cryptoAssets;
-    if (activeTab === 'mutual_fund') assets = mutualFundAssets;
-
-    if (assets.length === 0) {
-      return <p className="text-sm text-slate-400 p-4 text-center border-t border-dashed border-slate-300 mt-4">No data.</p>
-    }
-
-    return (
-      <div className="mt-4 pt-4 border-t border-dashed border-slate-300">
-        <div className="space-y-2">
-          {assets.map((asset) => (
-            <AssetCard
-              key={asset.id}
-              investment={asset}
-              viewMode={viewMode}
-              activeSimulation={activeSimulation}
-              medicalShockDeduction={
-                activeSimulation === 'MEDICAL_SHOCK'
-                  ? activeTab === 'debt'
-                    ? debtAllocation.deductions[asset.id] ?? 0
-                    : activeTab === 'mutual_fund'
-                      ? mfAllocation.deductions[asset.id] ?? 0
-                      : 0
-                  : 0
-              }
-            />
-          ))}
-        </div>
-      </div>
-    );
-  };
 
   return (
     <div className="min-h-screen bg-slate-50 p-8 flex justify-center font-sans text-slate-800 relative pb-20">
 
-      <Link href="/dashboard/clients" className="absolute top-8 left-8 inline-flex items-center gap-2 text-sm font-medium text-slate-600 hover:text-slate-900">
-        <ArrowLeft className="h-4 w-4" /> Back
-      </Link>
+      {/* Breadcrumb — top-left */}
+      <div className="absolute top-6 left-8">
+        <Breadcrumb leafLabel={client!.name} />
+      </div>
 
       {/* Main Container */}
       <div className="w-full max-w-5xl border-2 border-slate-800 rounded-3xl p-8 relative flex flex-col items-center bg-white min-h-[600px] mt-8">
@@ -285,6 +224,7 @@ export default function ClientDetailPage() {
                     </span>
                     <button
                       type="button"
+                      aria-label="Open stress test simulation"
                       onClick={() => setStressOpen(true)}
                       className="inline-flex items-center rounded-md border border-slate-300 px-3 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-100"
                     >
@@ -297,39 +237,78 @@ export default function ClientDetailPage() {
             </div>
           </div>
 
-          {/* Graph Block */}
-          <div className="border-2 border-slate-800 rounded-3xl p-6 relative flex flex-col justify-center min-h-[240px]">
+          {/* Portfolio History Graph Block */}
+          <div className="border-2 border-slate-800 rounded-3xl p-6 relative flex flex-col min-h-[240px]">
             <div className="absolute top-4 w-full text-center left-0 text-sm font-medium tracking-wide bg-white">
-              Graph
+              Portfolio History
             </div>
-            <div className="w-full h-32 mt-8">
-              <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={mockChartData} margin={{ top: 0, right: 0, left: -30, bottom: 0 }}>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E2E8F0" />
-                  <XAxis dataKey="month" axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#64748B' }} />
-                  <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#64748B' }} />
-                  <Tooltip />
-                  <Area type="monotone" dataKey="value" stroke="#334155" fill="#F1F5F9" strokeWidth={2} />
-                </AreaChart>
-              </ResponsiveContainer>
+            <div className="w-full flex-1 mt-8" style={{ minHeight: 160 }}>
+              {historyData.length === 0 ? (
+                <div className="flex h-full items-center justify-center">
+                  <p className="text-xs text-slate-400">No history data yet.</p>
+                </div>
+              ) : (
+                <ResponsiveContainer width="100%" height={160}>
+                  <AreaChart data={historyData} margin={{ top: 4, right: 4, left: -28, bottom: 0 }}>
+                    <defs>
+                      <linearGradient id="portfolioGradient" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#6366f1" stopOpacity={0.25} />
+                        <stop offset="95%" stopColor="#6366f1" stopOpacity={0} />
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E2E8F0" />
+                    <XAxis
+                      dataKey="month"
+                      axisLine={false}
+                      tickLine={false}
+                      tick={{ fontSize: 10, fill: '#94A3B8' }}
+                    />
+                    <YAxis
+                      axisLine={false}
+                      tickLine={false}
+                      tick={{ fontSize: 9, fill: '#94A3B8' }}
+                      tickFormatter={(v) =>
+                        new Intl.NumberFormat('en-IN', { notation: 'compact', maximumFractionDigits: 1 }).format(v)
+                      }
+                    />
+                    <Tooltip
+                      formatter={(value: number) => [
+                        new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(value),
+                        'Portfolio Value',
+                      ]}
+                      contentStyle={{ fontSize: 11, borderRadius: 8, border: '1px solid #E2E8F0' }}
+                    />
+                    <Area
+                      type="monotone"
+                      dataKey="totalValue"
+                      stroke="#6366f1"
+                      strokeWidth={2.5}
+                      fill="url(#portfolioGradient)"
+                      dot={{ r: 3, fill: '#6366f1', strokeWidth: 0 }}
+                      activeDot={{ r: 5 }}
+                    />
+                  </AreaChart>
+                </ResponsiveContainer>
+              )}
             </div>
           </div>
         </div>
 
+        {/* View Mode Toggle */}
         <div className="mt-6 inline-flex rounded-xl border border-slate-300 bg-slate-100 p-1">
           <button
             type="button"
+            aria-label="Show market value"
             onClick={() => setViewMode('VALUE')}
-            className={`rounded-lg px-3 py-1 text-xs font-semibold ${viewMode === 'VALUE' ? 'bg-slate-800 text-white' : 'text-slate-700'
-              }`}
+            className={`rounded-lg px-3 py-1 text-xs font-semibold ${viewMode === 'VALUE' ? 'bg-slate-800 text-white' : 'text-slate-700'}`}
           >
             Market Value
           </button>
           <button
             type="button"
+            aria-label="Show total returns"
             onClick={() => setViewMode('RETURNS')}
-            className={`rounded-lg px-3 py-1 text-xs font-semibold ${viewMode === 'RETURNS' ? 'bg-slate-800 text-white' : 'text-slate-700'
-              }`}
+            className={`rounded-lg px-3 py-1 text-xs font-semibold ${viewMode === 'RETURNS' ? 'bg-slate-800 text-white' : 'text-slate-700'}`}
           >
             Total Returns
           </button>
@@ -343,62 +322,14 @@ export default function ClientDetailPage() {
           </div>
         )}
 
-        {/* 4 Category Blocks */}
-        <div className="w-full grid grid-cols-2 md:grid-cols-4 gap-6 mt-8">
-
-          <div
-            onClick={() => setActiveTab('stock')}
-            className={`border-2 border-slate-800 rounded-3xl p-4 min-h-[140px] relative cursor-pointer transition-all ${activeTab === 'stock' ? 'bg-slate-100 ring-4 ring-slate-200' : 'bg-white hover:bg-slate-50'}`}
-          >
-            <div className="absolute top-4 w-full text-center left-0 text-sm font-medium tracking-wide">
-              Stock
-            </div>
-            <div className="mt-8 text-center text-xl font-bold font-mono">
-              {formatInr(getCategoryDisplayValue(stockAssets, 'stock'))}
-            </div>
-            {activeTab === 'stock' && renderActiveTabData()}
-          </div>
-
-          <div
-            onClick={() => setActiveTab('debt')}
-            className={`border-2 border-slate-800 rounded-3xl p-4 min-h-[140px] relative cursor-pointer transition-all ${activeTab === 'debt' ? 'bg-slate-100 ring-4 ring-slate-200' : 'bg-white hover:bg-slate-50'}`}
-          >
-            <div className="absolute top-4 w-full text-center left-0 text-sm font-medium tracking-wide">
-              Debt
-            </div>
-            <div className="mt-8 text-center text-xl font-bold font-mono">
-              {formatInr(getCategoryDisplayValue(debtAssets, 'debt'))}
-            </div>
-            {activeTab === 'debt' && renderActiveTabData()}
-          </div>
-
-          <div
-            onClick={() => setActiveTab('crypto')}
-            className={`border-2 border-slate-800 rounded-3xl p-4 min-h-[140px] relative cursor-pointer transition-all ${activeTab === 'crypto' ? 'bg-slate-100 ring-4 ring-slate-200' : 'bg-white hover:bg-slate-50'}`}
-          >
-            <div className="absolute top-4 w-full text-center left-0 text-sm font-medium tracking-wide">
-              Crypto
-            </div>
-            <div className="mt-8 text-center text-xl font-bold font-mono">
-              {formatInr(getCategoryDisplayValue(cryptoAssets, 'crypto'))}
-            </div>
-            {activeTab === 'crypto' && renderActiveTabData()}
-          </div>
-
-          <div
-            onClick={() => setActiveTab('mutual_fund')}
-            className={`border-2 border-slate-800 rounded-3xl p-4 min-h-[140px] relative cursor-pointer transition-all ${activeTab === 'mutual_fund' ? 'bg-slate-100 ring-4 ring-slate-200' : 'bg-white hover:bg-slate-50'}`}
-          >
-            <div className="absolute top-4 w-full text-center left-0 text-sm font-medium tracking-wide whitespace-nowrap overflow-hidden text-ellipsis px-2">
-              Mutual Fund
-            </div>
-            <div className="mt-8 text-center text-xl font-bold font-mono">
-              {formatInr(getCategoryDisplayValue(mutualFundAssets, 'mutual_fund'))}
-            </div>
-            {activeTab === 'mutual_fund' && renderActiveTabData()}
-          </div>
-
-        </div>
+        {/* Asset Vault — replaces the 4-column grid */}
+        <AssetVault
+          investments={client!.investments ?? []}
+          viewMode={viewMode}
+          activeSimulation={activeSimulation}
+          debtAllocation={debtAllocation}
+          mfAllocation={mfAllocation}
+        />
 
         {/* Advisory Block */}
         <div className="w-full border-2 border-slate-800 rounded-3xl p-6 mt-8 relative flex flex-col justify-center min-h-[160px]">
@@ -467,6 +398,10 @@ export default function ClientDetailPage() {
           setActiveSimulation(scenario);
           // Always clamp stressed score below the real score so badge shows a meaningful drop.
           setStressedScore(Math.min(result.stressedScore, realHealthScore - 0.5));
+          toast.warning(
+            `🚨 ${scenario.replaceAll('_', ' ')} simulation active — showing stressed values`,
+            { description: `Score dropped from ${realHealthScore.toFixed(1)} → ${Math.min(result.stressedScore, realHealthScore - 0.5).toFixed(1)}` },
+          );
         }}
       />
     </div>

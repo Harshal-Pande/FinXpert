@@ -242,6 +242,52 @@ async function main() {
   }
 
   console.log(`✅ Created ${todoItems.length} todo items`);
+
+  // 4. Seed 6-month Portfolio Snapshots (Oct 2024 – Mar 2025)
+  // Delete existing snapshots for this advisor's clients first (idempotent)
+  await prisma.portfolioSnapshot.deleteMany({
+    where: { client: { advisor_id: advisor.id } },
+  });
+
+  // Hand-tuned monthly values for key clients (in INR)
+  const NAMED_CURVES: Record<string, number[]> = {
+    'Aditi Rao':  [7_500_000, 7_800_000, 8_200_000, 8_050_000, 8_600_000, 9_100_000],
+    'Ishita Sen': [4_200_000, 4_500_000, 4_350_000, 4_700_000, 4_900_000, 5_300_000],
+  };
+
+  const MONTHS = [
+    new Date('2024-10-01'),
+    new Date('2024-11-01'),
+    new Date('2024-12-01'),
+    new Date('2025-01-01'),
+    new Date('2025-02-01'),
+    new Date('2025-03-01'),
+  ];
+
+  for (const { id: clientId, name } of createdClients) {
+    let values: number[];
+
+    if (NAMED_CURVES[name]) {
+      values = NAMED_CURVES[name];
+    } else {
+      // Auto-generate: start from a random base, apply ±5% monthly drift
+      let base = 3_000_000 + Math.random() * 6_000_000;
+      values = MONTHS.map(() => {
+        base = base * (1 + (Math.random() * 0.1 - 0.03)); // -3% to +7%
+        return Math.round(base);
+      });
+    }
+
+    const snapshots = MONTHS.map((date, i) => ({
+      client_id: clientId,
+      total_value: values[i],
+      date,
+    }));
+
+    await prisma.portfolioSnapshot.createMany({ data: snapshots });
+  }
+
+  console.log(`✅ Created portfolio snapshots for ${createdClients.length} clients (6 months each)`);
 }
 
 main()
@@ -251,4 +297,4 @@ main()
   })
   .finally(async () => {
     await prisma.$disconnect();
-  });
+  });

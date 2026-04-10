@@ -37,9 +37,19 @@ export class ClientsController {
     return this.clientsService.findAll({ ...query, advisorId });
   }
 
+  @Get('aum-history')
+  getAumHistory() {
+    return this.clientsService.getAdvisorAumHistory();
+  }
+
   @Get(':id')
   findOne(@Param('id', ParseUUIDPipe) id: string) {
     return this.clientsService.findOne(id);
+  }
+
+  @Get(':id/history')
+  getHistory(@Param('id', ParseUUIDPipe) id: string) {
+    return this.clientsService.getPortfolioHistory(id);
   }
 
   @Put(':id')

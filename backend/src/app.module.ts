@@ -14,6 +14,7 @@ import { MarketInsightsModule } from './modules/market-insights/market-insights.
 import { DashboardModule } from './modules/dashboard/dashboard.module';
 import { TodosModule } from './modules/todos/todos.module';
 import { AdvisoryModule } from './modules/advisory/advisory.module';
+import { MarketModule } from './modules/market/market.module';
 import { HealthModule } from './health/health.module';
 
 @Module({
@@ -35,6 +36,7 @@ import { HealthModule } from './health/health.module';
     DashboardModule,
     TodosModule,
     AdvisoryModule,
+    MarketModule,
     HealthModule,
   ],
 })

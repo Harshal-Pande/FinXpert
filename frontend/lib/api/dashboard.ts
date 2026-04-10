@@ -1,21 +1,48 @@
 import { apiClient } from './client';
+import { MarketEvent } from './market';
+
+export interface ActionItem {
+  clientName?: string;
+  drift?: string;
+  amount?: number;
+  title?: string;
+  deadline?: string;
+  action?: string;
+  priority?: string;
+}
+
+export interface StrategicInsight {
+  title: string;
+  recommendation: string;
+  impact: string;
+  category: 'REBALANCE' | 'DEPLOY' | 'RISK' | 'EXPERT';
+}
+
+export interface MarketPulse {
+  name: string;
+  value: string;
+  change: string;
+  pc: string;
+  trend: 'up' | 'down';
+}
 
 export interface DashboardSummary {
   totalClients: number;
   totalAUM: number;
+  avgHealthScore: number;
   marketAlerts: number;
   pendingTodos: number;
-  recentInsights: {
-    id: string;
-    title: string;
-    event_type: string;
-    severity: string;
-    ai_summary: string | null;
-    affected_clients: string[];
-    created_at: string;
-  }[];
+  actionCenter: {
+    highDrift: ActionItem[];
+    idleCash: ActionItem[];
+    wtcAlerts: ActionItem[];
+  };
+  strategicInsights: StrategicInsight[];
+  marketPulse: MarketPulse[];
+  recentNews: MarketEvent[];
 }
 
-export function getDashboardSummary(): Promise<DashboardSummary> {
-  return apiClient<DashboardSummary>('/dashboard/summary');
+export async function getDashboardSummary(advisorId?: string): Promise<DashboardSummary> {
+  const url = advisorId ? `/dashboard/summary?advisorId=${advisorId}` : '/dashboard/summary';
+  return apiClient<DashboardSummary>(url);
 }

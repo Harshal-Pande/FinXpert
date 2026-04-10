@@ -10,6 +10,8 @@ import {
 } from '@/lib/api/health-score-formula';
 import { Save } from 'lucide-react';
 import { PieChart, Pie, Cell, ResponsiveContainer } from 'recharts';
+import { toast } from 'sonner';
+import Breadcrumb from '@/components/layout/Breadcrumb';
 
 interface PreviewResult {
   rawScore: number;
@@ -185,12 +187,14 @@ export default function HealthScoreBuilderPage() {
       setSteps(updated.steps);
       console.log('Formula Saved Successfully');
       setMessage('Sequential formula saved successfully.');
+      toast.success('Formula saved — scores recalculated for all clients.');
     } catch (err: unknown) {
       const messageFromError =
         err && typeof err === 'object' && 'message' in err
           ? String((err as { message?: unknown }).message ?? 'Failed to save formula')
           : 'Failed to save formula';
       setError(messageFromError);
+      toast.error('Failed to save formula. Check backend logs.');
     } finally {
       setSaving(false);
     }
@@ -208,7 +212,8 @@ export default function HealthScoreBuilderPage() {
     <div className="min-h-screen bg-slate-50 p-6">
       <div className="mx-auto max-w-7xl">
         <div className="mb-5">
-          <h1 className="text-2xl font-semibold text-slate-800">Health Score Builder</h1>
+          <Breadcrumb />
+          <h1 className="mt-2 text-2xl font-semibold text-slate-800">Health Score Builder</h1>
           <p className="text-sm text-slate-500">Build a sequential formula using add/subtract steps.</p>
         </div>
 

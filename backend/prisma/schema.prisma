@@ -35,6 +35,7 @@ model Client {
   healthScores      HealthScore[]
   portfolioTarget   PortfolioTarget?
   todos             TodoItem[]
+  portfolioSnapshots PortfolioSnapshot[]
 }
 
 enum InvestmentType {
@@ -132,4 +133,14 @@ model TodoItem {
 
   @@index([advisor_id])
   @@index([status])
+}
+
+model PortfolioSnapshot {
+  id          String   @id @default(uuid())
+  client_id   String
+  total_value Float
+  date        DateTime @default(now())
+  client      Client   @relation(fields: [client_id], references: [id], onDelete: Cascade)
+
+  @@index([client_id, date])
 }

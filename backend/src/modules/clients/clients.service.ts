@@ -159,4 +159,41 @@ export class ClientsService {
       data,
     });
   }
+
+  async getPortfolioHistory(clientId: string) {
+    const snapshots = await this.prisma.portfolioSnapshot.findMany({
+      where: { client_id: clientId },
+      orderBy: { date: 'asc' },
+      select: { id: true, total_value: true, date: true },
+    });
+    return snapshots.map((s) => ({
+      id: s.id,
+      totalValue: s.total_value,
+      date: s.date.toISOString(),
+      month: s.date.toLocaleDateString('en-IN', { month: 'short', year: '2-digit' }),
+    }));
+  }
+
+  async getAdvisorAumHistory() {
+    const all = await this.prisma.portfolioSnapshot.findMany({
+      orderBy: { date: 'asc' },
+      select: { total_value: true, date: true },
+    });
+
+    // Group by month label (e.g. "Oct '24")
+    const grouped = new Map<string, { total: number; date: Date }>();
+    for (const s of all) {
+      const key = s.date.toLocaleDateString('en-IN', { month: 'short', year: '2-digit' });
+      const existing = grouped.get(key);
+      if (existing) {
+        existing.total += s.total_value;
+      } else {
+        grouped.set(key, { total: s.total_value, date: s.date });
+      }
+    }
+
+    return Array.from(grouped.entries())
+      .sort((a, b) => a[1].date.getTime() - b[1].date.getTime())
+      .map(([month, { total }]) => ({ month, totalValue: Math.round(total) }));
+  }
 }
