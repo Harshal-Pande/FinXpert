@@ -21,7 +21,13 @@ export class PortfolioObserverService implements OnModuleInit {
   onModuleInit() {
     // Prisma Driver Adapters may not expose `$use` on the generated TS type,
     // but the runtime client still supports middleware registration.
-    (this.prisma as unknown as { $use: (middleware: PrismaMiddleware) => void }).$use(
+    const maybeUse = (this.prisma as unknown as { $use?: (middleware: PrismaMiddleware) => void }).$use;
+    if (typeof maybeUse !== 'function') {
+      this.logger.warn('Prisma middleware `$use` is not available; PortfolioObserver is disabled.');
+      return;
+    }
+
+    maybeUse(
       async (params: PrismaMiddlewareParams, next: PrismaMiddlewareNext) => {
       const result = await next(params);
 
