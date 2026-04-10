@@ -8,10 +8,12 @@ async function bootstrap() {
   const app = await NestFactory.create(AppModule);
   const config = app.get(ConfigService);
 
-  // 1. ENABLE CORS for local frontend ports and optional env override.
+  // 1. DYNAMIC CORS CONFIGURATION
+  // This allows local dev and your production Vercel deployment
   const allowedOrigins = [
     'http://localhost:3000',
     'http://localhost:3010',
+    'https://fin-xpert.vercel.app', // Update this with your exact Vercel URL
     config.get<string>('FRONTEND_URL'),
   ].filter((origin): origin is string => Boolean(origin));
 
@@ -19,9 +21,11 @@ async function bootstrap() {
     origin: allowedOrigins,
     methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
     credentials: true,
+    allowedHeaders: 'Content-Type, Accept, Authorization',
   });
 
-  // 2. Setup Global Validation
+  // 2. SETUP GLOBAL VALIDATION
+  // Ensures incoming data matches our DTOs strictly
   app.useGlobalPipes(
     new ValidationPipe({
       whitelist: true,
@@ -31,13 +35,17 @@ async function bootstrap() {
     }),
   );
 
-  // 3. Setup Global Auth Guard
+  // 3. SETUP GLOBAL AUTH GUARD
   const reflector = app.get(Reflector);
-  //app.useGlobalGuards(new JwtAuthGuard(reflector));
+  // app.useGlobalGuards(new JwtAuthGuard(reflector)); // Uncomment when ready for JWT
 
-  const port = config.get<number>('port') ?? 3001;
-  await app.listen(port);
-  console.log(`FinXpert API running on http://localhost:${port}`);
+  // 4. PORT CONFIGURATION
+  // Render usually provides a PORT env var; we fallback to 3001
+  const port = config.get<number>('PORT') || config.get<number>('port') || 3001;
+  
+  await app.listen(port, '0.0.0.0'); // Adding '0.0.0.0' helps Render binding
+  console.log(`🚀 FinXpert API is live on port: ${port}`);
+  console.log(`✅ Allowed Origins: ${allowedOrigins.join(', ')}`);
 }
 
 bootstrap();
