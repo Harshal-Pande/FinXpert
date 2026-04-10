@@ -6,7 +6,7 @@ import { getClient, Client } from '@/lib/api/clients';
 import { apiClient } from '@/lib/api/client';
 import { getClientHistory, type PortfolioSnapshot } from '@/lib/api/portfolio-history';
 import Link from 'next/link';
-import { User, Briefcase, Send, Shield } from 'lucide-react';
+import { User, Briefcase, Send, Shield, ArrowLeft } from 'lucide-react';
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip,
   ResponsiveContainer,
@@ -65,7 +65,7 @@ export default function ClientDetailPage() {
       .catch((err) => setError(err instanceof Error ? err.message : 'Failed to load client'))
       .finally(() => setLoading(false));
     // Fetch portfolio history in parallel
-    getClientHistory(id).then(setHistoryData).catch(() => {});
+    getClientHistory(id).then(setHistoryData).catch(() => { });
   }, [id]);
 
   // Single source of truth: calculatedHealthScore is the live normalized

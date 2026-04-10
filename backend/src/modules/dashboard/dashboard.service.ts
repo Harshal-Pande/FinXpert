@@ -40,7 +40,7 @@ export class DashboardService {
         }),
         this.prisma.client.findMany({
           where: clientWhere,
-          select: { id: true, name: true, health_score: true },
+          select: { id: true, name: true, healthScores: { orderBy: { calculated_at: 'desc' }, take: 1 } },
         }),
         this.prisma.todoItem.count({
           where: {
@@ -55,7 +55,7 @@ export class DashboardService {
 
     const totalAUM = investments.reduce((sum, inv) => sum + inv.total_value, 0);
     const avgHealthScore = allClients.length > 0 
-      ? allClients.reduce((sum, c) => sum + c.health_score, 0) / allClients.length 
+      ? allClients.reduce((sum, c) => sum + (c.healthScores[0]?.score || 0), 0) / allClients.length 
       : 0;
 
     // --- Dynamic Strategic Insights ---
@@ -89,13 +89,14 @@ export class DashboardService {
     });
 
     // 3. Health Score Risk (Task 1)
-    const riskyClients = allClients.filter(c => c.health_score < 3.0);
+    const riskyClients = allClients.filter(c => (c.healthScores[0]?.score || 0) < 3.0);
     riskyClients.forEach(c => {
       if (insights.length < 3) {
+        const score = c.healthScores[0]?.score || 0;
         insights.push({
           category: 'RISK',
           title: 'Critical Health Score',
-          recommendation: `Portfolio health for ${c.name} dropped to ${c.health_score.toFixed(1)}. Immediate risk review required.`,
+          recommendation: `Portfolio health for ${c.name} dropped to ${score.toFixed(1)}. Immediate risk review required.`,
           impact: 'Capital Protection',
         });
       }
