@@ -1,66 +1,33 @@
-"use client";
+import Link from 'next/link';
+import { TrendingUp } from 'lucide-react';
 
-import HealthScore from "../components/HealthScore";
-
-export default function Dashboard() {
+export default function HomePage() {
   return (
-    <div className="p-6 bg-gray-100 min-h-screen">
-      <h1 className="text-3xl font-bold mb-6">Dashboard</h1>
+    <main className="relative min-h-screen overflow-hidden bg-slate-950 text-white">
+      {/* Subtle gradient backdrop for premium landing feel */}
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(99,102,241,0.22),transparent_38%),radial-gradient(circle_at_bottom_left,rgba(16,185,129,0.14),transparent_40%)]" />
 
-      {/* Top Cards */}
-      <div className="grid grid-cols-3 gap-6 mb-6">
-        <div className="bg-white p-4 rounded-xl shadow">
-          <h2 className="text-sm text-gray-500">Total Clients</h2>
-          <p className="text-2xl font-bold">0</p>
+      <section className="relative mx-auto flex min-h-screen w-full max-w-5xl flex-col items-center justify-center px-6 py-16 text-center">
+        <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-indigo-400/30 bg-indigo-500/10 px-4 py-1.5 text-xs font-semibold uppercase tracking-wider text-indigo-200">
+          <TrendingUp className="h-4 w-4" />
+          FinXpert
         </div>
 
-        <div className="bg-white p-4 rounded-xl shadow">
-          <h2 className="text-sm text-gray-500">Total AUM</h2>
-          <p className="text-2xl font-bold">₹0</p>
-        </div>
+        <h1 className="max-w-4xl text-3xl font-bold leading-tight text-white sm:text-4xl md:text-5xl">
+          FinXpert: Advanced Financial Advisory Platform
+        </h1>
 
-        <div className="bg-white p-4 rounded-xl shadow">
-          <h2 className="text-sm text-gray-500">Market Alerts</h2>
-          <p className="text-2xl font-bold">0</p>
-        </div>
-      </div>
+        <p className="mt-5 max-w-2xl text-sm text-slate-300 sm:text-base md:text-lg">
+          Strategic insights, real-time portfolio tracking, and automated risk assessment.
+        </p>
 
-      {/* Middle Section */}
-      <div className="grid grid-cols-2 gap-6">
-        
-        {/* Health Score */}
-        <div className="bg-white p-4 rounded-xl shadow">
-          <HealthScore />
-        </div>
-
-        {/* To-Do */}
-        <div className="bg-white p-4 rounded-xl shadow">
-          <h2 className="text-lg font-bold mb-2">To-Do List</h2>
-          <input
-            type="text"
-            placeholder="Add task..."
-            className="border p-2 w-full rounded"
-          />
-        </div>
-      </div>
-
-      {/* Bottom Section */}
-      <div className="grid grid-cols-2 gap-6 mt-6">
-        
-        {/* Graph placeholder */}
-        <div className="bg-white p-4 rounded-xl shadow">
-          <h2 className="text-lg font-bold mb-2">Goal Progress</h2>
-          <p className="text-gray-500">Graph coming soon...</p>
-        </div>
-
-        {/* AI Summary */}
-        <div className="bg-white p-4 rounded-xl shadow">
-          <h2 className="text-lg font-bold mb-2">AI Summary</h2>
-          <p className="text-gray-500">
-            Portfolio is stable. Consider increasing diversification.
-          </p>
-        </div>
-      </div>
-    </div>
+        <Link
+          href="/dashboard"
+          className="mt-10 inline-flex items-center justify-center bg-indigo-600 text-white px-8 py-3 rounded-lg font-bold hover:bg-indigo-700 transition-all"
+        >
+          Enter Dashboard
+        </Link>
+      </section>
+    </main>
   );
 }
