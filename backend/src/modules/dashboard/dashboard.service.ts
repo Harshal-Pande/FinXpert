@@ -75,14 +75,26 @@ export class DashboardService {
       });
     }
 
-    // 2. Idle Cash (Task 1)
-    const bigCash = investments.filter(inv => inv.category === 'CASH' && inv.total_value > 500000);
-    bigCash.forEach(inv => {
+    // Aggregating idle cash per client – resolve repeated names issue
+    const cashAggregation = investments
+      .filter(inv => inv.category === 'CASH')
+      .reduce((acc, inv) => {
+        const cid = inv.client_id;
+        if (!acc[cid]) {
+          acc[cid] = { name: inv.client.name, total: 0 };
+        }
+        acc[cid].total += inv.total_value;
+        return acc;
+      }, {} as Record<string, { name: string, total: number }>);
+
+    const aggregatedBigCash = Object.values(cashAggregation).filter(c => c.total > 500000);
+
+    aggregatedBigCash.forEach(clientCash => {
       if (insights.length < 3) {
         insights.push({
           category: 'DEPLOY',
           title: 'Idle Cash Alert',
-          recommendation: `Deploy ₹${(inv.total_value / 100000).toFixed(1)}L idle cash for ${inv.client.name} into suggested Midcap funds.`,
+          recommendation: `Deploy ₹${(clientCash.total / 100000).toFixed(1)}L idle cash for ${clientCash.name} into suggested Midcap funds.`,
           impact: 'Cash Drag Reduction',
         });
       }
@@ -118,7 +130,7 @@ export class DashboardService {
         { clientName: 'Amit Patel', drift: '+8.2%', action: 'Rebalance' },
         { clientName: 'Sneha Reddy', drift: '-5.4%', action: 'Top-up Equity' },
       ],
-      idleCash: bigCash.map(inv => ({ clientName: inv.client.name, amount: inv.total_value, action: 'Deploy' })),
+      idleCash: aggregatedBigCash.map(c => ({ clientName: c.name, amount: c.total, action: 'Deploy' })),
       wtcAlerts: [
         { title: '80C Deadline', deadline: 'Mar 31', priority: 'High' },
         { title: 'Quarterly Advance Tax', deadline: 'Jun 15', priority: 'Med' },
