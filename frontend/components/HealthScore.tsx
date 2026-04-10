@@ -1,12 +1,13 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { getBackendOrigin } from "@/lib/api/client";
 
 export default function HealthScore() {
   const [data, setData] = useState<any>(null);
 
   useEffect(() => {
-    fetch("http://localhost:3001/health")
+    fetch(`${getBackendOrigin()}/health`)
       .then(res => res.json())
       .then(data => setData(data))
       .catch(err => console.error(err));

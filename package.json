@@ -1,0 +1,9 @@
+{
+  "name": "fin-xpert-mini-project",
+  "private": true,
+  "description": "Run backend + frontend together for local full-site simulation",
+  "scripts": {
+    "simulate": "bash scripts/simulate-website.sh",
+    "setup:macos-dev": "bash scripts/install-macos-ulimit.sh"
+  }
+}

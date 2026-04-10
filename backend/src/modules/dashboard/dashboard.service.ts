@@ -1,6 +1,9 @@
 import { Injectable } from '@nestjs/common';
+import { Investment, InvestmentCategory, InvestmentType } from '@prisma/client';
 import { PrismaService } from '../../database/prisma.service';
-import { MarketNewsService } from '../market/market-news.service';
+import { MarketDataService } from '../../services/market-data.service';
+import { ComplianceService } from '../compliance/compliance.service';
+import { NewsService, MarketNewsItemDto } from '../news/news.service';
 
 export interface StrategicInsight {
   title: string;
@@ -9,12 +12,341 @@ export interface StrategicInsight {
   category: 'REBALANCE' | 'DEPLOY' | 'RISK' | 'EXPERT';
 }
 
+export interface RecentNewsItem {
+  title: string;
+  summary: string;
+  source?: string;
+  impact: 'High' | 'Med' | 'Low';
+  category: 'Global' | 'Domestic' | 'Sector-wise';
+  timestamp: string;
+  url: string;
+  thumbnail?: string;
+}
+
+function normalizeRisk(r: string | null | undefined): 'conservative' | 'moderate' | 'aggressive' | 'unknown' {
+  if (!r) return 'unknown';
+  const x = r.toLowerCase();
+  if (x.includes('conservative') || x.includes('low')) return 'conservative';
+  if (x.includes('aggressive') || x.includes('high')) return 'aggressive';
+  if (x.includes('moderate') || x.includes('medium') || x.includes('balanced')) return 'moderate';
+  return 'unknown';
+}
+
+function defaultEquityTarget(risk: ReturnType<typeof normalizeRisk>): number {
+  switch (risk) {
+    case 'conservative':
+      return 0.45;
+    case 'moderate':
+      return 0.6;
+    case 'aggressive':
+      return 0.75;
+    default:
+      return 0.6;
+  }
+}
+
+function isEquityExposure(inv: Investment): boolean {
+  return (
+    inv.category === InvestmentCategory.STOCK ||
+    inv.category === InvestmentCategory.MUTUAL_FUND ||
+    inv.category === InvestmentCategory.CRYPTO
+  );
+}
+
+function isGoldProxy(inv: Investment): boolean {
+  return /\bgold\b|sgb|sovereign\s*gold/i.test(inv.instrument_name);
+}
+
+type ClientAgg = {
+  name: string;
+  risk: ReturnType<typeof normalizeRisk>;
+  total: number;
+  equity: number;
+  debt: number;
+  gold: number;
+  targetEquity: number | null;
+};
+
+type InvestmentWithClient = Investment & {
+  client: {
+    id: string;
+    name: string;
+    risk_profile: string | null;
+    portfolioTarget: {
+      stock_target: number;
+      mutual_fund_target: number;
+      crypto_target: number;
+      debt_target: number;
+    } | null;
+  };
+};
+
 @Injectable()
 export class DashboardService {
   constructor(
     private readonly prisma: PrismaService,
-    private readonly marketNews: MarketNewsService,
+    private readonly newsService: NewsService,
+    private readonly marketData: MarketDataService,
+    private readonly compliance: ComplianceService,
   ) {}
+
+  private mapNewsToRecent(items: MarketNewsItemDto[]): RecentNewsItem[] {
+    return items.map((n) => ({
+      title: n.headline,
+      summary: n.summary,
+      source: n.source,
+      impact: n.impact,
+      category: n.category,
+      timestamp: n.time,
+      url: n.url,
+      thumbnail: n.thumbnail ?? undefined,
+    }));
+  }
+
+  private buildClientAllocationMap(investments: InvestmentWithClient[]): Map<string, ClientAgg> {
+    const clientMap = new Map<string, ClientAgg>();
+    for (const inv of investments) {
+      const id = inv.client_id;
+      const risk = normalizeRisk(inv.client.risk_profile);
+      let row = clientMap.get(id);
+      if (!row) {
+        const pt = inv.client.portfolioTarget;
+        const targetEquity = pt
+          ? pt.stock_target + pt.mutual_fund_target + pt.crypto_target
+          : null;
+        row = {
+          name: inv.client.name,
+          risk,
+          total: 0,
+          equity: 0,
+          debt: 0,
+          gold: 0,
+          targetEquity,
+        };
+        clientMap.set(id, row);
+      }
+      row.total += inv.total_value;
+      if (isEquityExposure(inv)) row.equity += inv.total_value;
+      if (inv.investment_type === InvestmentType.Debt) row.debt += inv.total_value;
+      if (isGoldProxy(inv)) row.gold += inv.total_value;
+    }
+    return clientMap;
+  }
+
+  private buildHighDriftActions(clientMap: Map<string, ClientAgg>) {
+    const scored: Array<{
+      absGap: number;
+      item: { clientName: string; drift: string; action: string };
+    }> = [];
+    for (const [, row] of clientMap) {
+      if (row.total <= 0) continue;
+      const equityPct = row.equity / row.total;
+      const targetEq = row.targetEquity ?? defaultEquityTarget(row.risk);
+      const gapPct = Math.round((equityPct - targetEq) * 100);
+      if (gapPct >= 6) {
+        scored.push({
+          absGap: Math.abs(gapPct),
+          item: {
+            clientName: row.name,
+            drift: `+${gapPct}% vs equity target`,
+            action: 'Rebalance',
+          },
+        });
+      } else if (gapPct <= -10) {
+        scored.push({
+          absGap: Math.abs(gapPct),
+          item: {
+            clientName: row.name,
+            drift: `${gapPct}% vs equity target`,
+            action: 'Review allocation',
+          },
+        });
+      }
+    }
+    scored.sort((a, b) => b.absGap - a.absGap);
+    return scored.slice(0, 8).map((s) => s.item);
+  }
+
+  private buildStrategicInsights(
+    newsItems: MarketNewsItemDto[],
+    clientMap: Map<string, ClientAgg>,
+    allClients: Array<{
+      id: string;
+      name: string;
+      healthScores: Array<{ score: number }>;
+    }>,
+    marketStats: Awaited<ReturnType<MarketDataService['getMarketStats']>>,
+    aggregatedBigCash: Array<{ name: string; total: number }>,
+    totalAUM: number,
+  ): StrategicInsight[] {
+    const candidates: Array<{ insight: StrategicInsight; weight: number }> = [];
+    const push = (insight: StrategicInsight, weight: number) =>
+      candidates.push({ insight, weight });
+
+    const marketDown =
+      marketStats.nifty.trend === 'down' && marketStats.sensex.trend === 'down';
+
+    for (const c of allClients) {
+      const score = c.healthScores[0]?.score ?? 0;
+      if (score > 0 && score < 3.0) {
+        push(
+          {
+            category: 'RISK',
+            title: 'Critical Health Score',
+            recommendation: `Portfolio health for ${c.name} dropped to ${score.toFixed(1)}. Immediate risk review required.`,
+            impact: 'Capital Protection',
+          },
+          100,
+        );
+      }
+    }
+
+    for (const [, row] of clientMap) {
+      if (row.total <= 0) continue;
+      const equityPct = row.equity / row.total;
+      const targetEq = row.targetEquity ?? defaultEquityTarget(row.risk);
+      const gapPct = Math.round((equityPct - targetEq) * 100);
+
+      if (row.risk === 'conservative' && equityPct > 0.52) {
+        push(
+          {
+            category: 'RISK',
+            title: 'Risk–return mismatch',
+            recommendation: `${row.name}'s risk profile is conservative, but equity-like allocation is about ${(equityPct * 100).toFixed(0)}%. Consider rebalancing toward debt or hybrid funds.`,
+            impact: 'Policy alignment',
+          },
+          90,
+        );
+      }
+
+      if (gapPct >= 8) {
+        push(
+          {
+            category: 'REBALANCE',
+            title: 'Equity above target',
+            recommendation: `${row.name}'s portfolio is overexposed to equity by about ${gapPct}% vs model target. Consider profit booking or shifting to debt.`,
+            impact: 'Risk Re-alignment',
+          },
+          70,
+        );
+      }
+
+      if (gapPct <= -12) {
+        push(
+          {
+            category: 'REBALANCE',
+            title: 'Equity below target',
+            recommendation: `${row.name} is underweight equity by about ${Math.abs(gapPct)}% vs target. Review entry opportunities if horizon allows.`,
+            impact: 'Long-term growth',
+          },
+          55,
+        );
+      }
+    }
+
+    let bookEquity = 0;
+    let bookTargetSum = 0;
+    let bookTargetWeight = 0;
+    for (const [, row] of clientMap) {
+      if (row.total <= 0) continue;
+      bookEquity += row.equity;
+      const w = row.total / totalAUM;
+      const t = row.targetEquity ?? defaultEquityTarget(row.risk);
+      bookTargetSum += t * w;
+      bookTargetWeight += w;
+    }
+    if (totalAUM > 0 && bookTargetWeight > 0) {
+      const bookEquityPct = bookEquity / totalAUM;
+      const avgTarget = bookTargetSum / bookTargetWeight;
+      const bookGapPct = Math.round((bookEquityPct - avgTarget) * 100);
+      if (bookGapPct >= 10) {
+        push(
+          {
+            category: 'REBALANCE',
+            title: 'Book-level equity tilt',
+            recommendation: `Across your book, equity-like exposure is about ${bookGapPct}% above blended client targets. Rebalancing at scale may reduce concentration risk.`,
+            impact: 'Book risk',
+          },
+          65,
+        );
+      }
+    }
+
+    const bookGold =
+      totalAUM > 0
+        ? [...clientMap.values()].reduce((s, r) => s + r.gold, 0) / totalAUM
+        : 0;
+
+    if (marketDown && totalAUM > 0) {
+      push(
+        {
+          category: 'REBALANCE',
+          title: 'Volatile tape',
+          recommendation:
+            'Headline indices are weak. Consider increasing debt or hybrid allocation for suitable clients to cushion drawdowns.',
+          impact: 'Volatility',
+        },
+        60,
+      );
+      if (bookGold < 0.05) {
+        push(
+          {
+            category: 'EXPERT',
+            title: 'Gold sleeve',
+            recommendation:
+              bookGold < 0.01
+                ? 'No meaningful gold / SGB sleeve detected across the book while markets are soft. Review a small strategic gold allocation where policy allows.'
+                : 'Gold allocation appears below a common 5–10% strategic sleeve. Consider topping up via SGB or gold funds for clients who need diversifiers.',
+            impact: 'Diversification',
+          },
+          50,
+        );
+      }
+    }
+
+    for (const clientCash of aggregatedBigCash) {
+      push(
+        {
+          category: 'DEPLOY',
+          title: 'Idle Cash Alert',
+          recommendation: `Deploy ₹${(clientCash.total / 100000).toFixed(1)}L idle cash for ${clientCash.name} into suggested funds per IPS.`,
+          impact: 'Cash drag reduction',
+        },
+        58,
+      );
+    }
+
+    const priorityMap = { High: 3, Med: 2, Low: 1 };
+    const sortedNews = [...newsItems].sort(
+      (a, b) => (priorityMap[b.impact] ?? 0) - (priorityMap[a.impact] ?? 0),
+    );
+    const topNews = sortedNews[0];
+    if (topNews) {
+      const sumLine =
+        topNews.summary?.split('.')[0] ?? topNews.headline;
+      push(
+        {
+          category: 'EXPERT',
+          title: topNews.headline,
+          recommendation: `${sumLine}. Worth reviewing positioning across ${allClients.length} clients in light of this headline.`,
+          impact: `${topNews.impact} impact news`,
+        },
+        40,
+      );
+    }
+
+    candidates.sort((a, b) => b.weight - a.weight);
+    const seen = new Set<string>();
+    const out: StrategicInsight[] = [];
+    for (const { insight } of candidates) {
+      const key = insight.title + insight.recommendation.slice(0, 40);
+      if (seen.has(key)) continue;
+      seen.add(key);
+      out.push(insight);
+      if (out.length >= 8) break;
+    }
+    return out;
+  }
 
   async getSummary(advisorId?: string) {
     const clientWhere: Record<string, unknown> = {};
@@ -22,127 +354,101 @@ export class DashboardService {
       clientWhere.advisor_id = advisorId;
     }
 
-    const [totalClients, investments, marketAlerts, allClients, todos, news] =
-      await Promise.all([
-        this.prisma.client.count({ where: clientWhere }),
-        this.prisma.investment.findMany({
-          where: clientWhere.advisor_id
-            ? { client: { advisor_id: clientWhere.advisor_id as string } }
-            : {},
-          include: { client: true },
-        }),
-        this.prisma.marketInsight.count({
-          where: {
-            created_at: {
-              gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000), // last 7 days
-            },
+    const [
+      totalClients,
+      investments,
+      marketAlerts,
+      allClients,
+      todos,
+      newsItems,
+      upcomingCompliance,
+      marketStats,
+    ] = await Promise.all([
+      this.prisma.client.count({ where: clientWhere }),
+      this.prisma.investment.findMany({
+        where: clientWhere.advisor_id
+          ? { client: { advisor_id: clientWhere.advisor_id as string } }
+          : {},
+        include: {
+          client: {
+            include: { portfolioTarget: true },
           },
-        }),
-        this.prisma.client.findMany({
-          where: clientWhere,
-          select: { id: true, name: true, healthScores: { orderBy: { calculated_at: 'desc' }, take: 1 } },
-        }),
-        this.prisma.todoItem.count({
-          where: {
-            ...(advisorId && advisorId !== 'undefined'
-              ? { advisor_id: advisorId }
-              : {}),
-            status: { not: 'done' },
+        },
+      }),
+      this.prisma.marketInsight.count({
+        where: {
+          created_at: {
+            gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000),
           },
-        }),
-        this.marketNews.getNews(),
-      ]);
+        },
+      }),
+      this.prisma.client.findMany({
+        where: clientWhere,
+        select: {
+          id: true,
+          name: true,
+          healthScores: { orderBy: { calculated_at: 'desc' }, take: 1 },
+        },
+      }),
+      this.prisma.todoItem.count({
+        where: {
+          ...(advisorId && advisorId !== 'undefined' ? { advisor_id: advisorId } : {}),
+          status: { not: 'done' },
+        },
+      }),
+      this.newsService.getMarketNews(10),
+      this.compliance.getUpcoming(),
+      this.marketData.getMarketStats(),
+    ]);
 
     const totalAUM = investments.reduce((sum, inv) => sum + inv.total_value, 0);
-    const avgHealthScore = allClients.length > 0 
-      ? allClients.reduce((sum, c) => sum + (c.healthScores[0]?.score || 0), 0) / allClients.length 
-      : 0;
+    const avgHealthScore =
+      allClients.length > 0
+        ? allClients.reduce((sum, c) => sum + (c.healthScores[0]?.score || 0), 0) /
+          allClients.length
+        : 0;
 
-    // --- Dynamic Strategic Insights ---
-    const insights: StrategicInsight[] = [];
-
-    // 1. News Correlation (Prioritize highest available impact)
-    const priorityMap = { High: 3, Med: 2, Low: 1 };
-    const sortedNews = [...news].sort((a, b) => (priorityMap[b.impact] ?? 0) - (priorityMap[a.impact] ?? 0));
-    const topNews = sortedNews[0];
-
-    if (topNews) {
-      insights.push({
-        category: 'EXPERT',
-        title: topNews.title,
-        recommendation: `${topNews.summary.split('.')[0]}. Recommendation for ${allClients.length} clients to review positions.`,
-        impact: `${topNews.impact} Impact News`,
-      });
-    }
-
-    // Aggregating idle cash per client – resolve repeated names issue
     const cashAggregation = investments
-      .filter(inv => inv.category === 'CASH')
-      .reduce((acc, inv) => {
-        const cid = inv.client_id;
-        if (!acc[cid]) {
-          acc[cid] = { name: inv.client.name, total: 0 };
-        }
-        acc[cid].total += inv.total_value;
-        return acc;
-      }, {} as Record<string, { name: string, total: number }>);
+      .filter((inv) => inv.category === InvestmentCategory.CASH)
+      .reduce(
+        (acc, inv) => {
+          const cid = inv.client_id;
+          if (!acc[cid]) {
+            acc[cid] = { name: inv.client.name, total: 0 };
+          }
+          acc[cid].total += inv.total_value;
+          return acc;
+        },
+        {} as Record<string, { name: string; total: number }>,
+      );
 
-    const aggregatedBigCash = Object.values(cashAggregation).filter(c => c.total > 500000);
+    const aggregatedBigCash = Object.values(cashAggregation).filter((c) => c.total > 500000);
 
-    aggregatedBigCash.forEach(clientCash => {
-      if (insights.length < 3) {
-        insights.push({
-          category: 'DEPLOY',
-          title: 'Idle Cash Alert',
-          recommendation: `Deploy ₹${(clientCash.total / 100000).toFixed(1)}L idle cash for ${clientCash.name} into suggested Midcap funds.`,
-          impact: 'Cash Drag Reduction',
-        });
-      }
-    });
+    const clientMap = this.buildClientAllocationMap(investments as InvestmentWithClient[]);
+    const strategicInsights = this.buildStrategicInsights(
+      newsItems,
+      clientMap,
+      allClients,
+      marketStats,
+      aggregatedBigCash,
+      totalAUM,
+    );
 
-    // 3. Health Score Risk (Task 1)
-    const riskyClients = allClients.filter(c => (c.healthScores[0]?.score || 0) < 3.0);
-    riskyClients.forEach(c => {
-      if (insights.length < 3) {
-        const score = c.healthScores[0]?.score || 0;
-        insights.push({
-          category: 'RISK',
-          title: 'Critical Health Score',
-          recommendation: `Portfolio health for ${c.name} dropped to ${score.toFixed(1)}. Immediate risk review required.`,
-          impact: 'Capital Protection',
-        });
-      }
-    });
-
-    // 4. Fallback/Drift (Mocked target check)
-    if (insights.length < 2) {
-      insights.push({
-        category: 'REBALANCE',
-        title: 'Threshold Breach',
-        recommendation: `Equity exposure for Amit Patel is 8.2% above target. Consider profit booking.`,
-        impact: 'Risk Re-alignment',
-      });
-    }
-
-    // --- Action Center Logic ---
     const actionCenter = {
-      highDrift: [
-        { clientName: 'Amit Patel', drift: '+8.2%', action: 'Rebalance' },
-        { clientName: 'Sneha Reddy', drift: '-5.4%', action: 'Top-up Equity' },
-      ],
-      idleCash: aggregatedBigCash.map(c => ({ clientName: c.name, amount: c.total, action: 'Deploy' })),
-      wtcAlerts: [
-        { title: '80C Deadline', deadline: 'Mar 31', priority: 'High' },
-        { title: 'Quarterly Advance Tax', deadline: 'Jun 15', priority: 'Med' },
-      ]
+      highDrift: this.buildHighDriftActions(clientMap),
+      idleCash: aggregatedBigCash.map((c) => ({
+        clientName: c.name,
+        amount: c.total,
+        action: 'Deploy',
+      })),
+      wtcAlerts: upcomingCompliance.map((c) => ({
+        title: c.name,
+        deadline: new Date(c.dueDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' }),
+        priority: c.status === 'urgent' ? 'High' : 'Med',
+      })),
     };
 
-    // --- Market Pulse (Mocked for dashboard) ---
-    const marketPulse = [
-      { name: 'NIFTY 50', value: '22,453.80', change: '+124.20', pc: '+0.56%', trend: 'up' },
-      { name: 'SENSEX', value: '73,876.15', change: '+456.10', pc: '+0.62%', trend: 'up' },
-      { name: 'GOLD (24k)', value: '66,240', change: '-120.00', pc: '-0.18%', trend: 'down' },
-    ];
+    const marketPulse = [marketStats.nifty, marketStats.sensex, marketStats.gold];
 
     return {
       totalClients,
@@ -151,9 +457,9 @@ export class DashboardService {
       marketAlerts,
       pendingTodos: todos,
       actionCenter,
-      strategicInsights: insights.slice(0, 3), // Top 3 as requested
+      strategicInsights,
       marketPulse,
-      recentNews: news.slice(0, 3),
+      recentNews: this.mapNewsToRecent(newsItems.slice(0, 10)),
     };
   }
 }

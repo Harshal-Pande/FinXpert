@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from 'react';
 import { Clock, Filter, Globe, Home, Layers, Zap } from 'lucide-react';
-import { getMarketNews, MarketEvent } from '@/lib/api/market';
+import { getMarketNewsFeed, toMarketEvent } from '@/lib/api/news';
+import type { MarketEvent } from '@/lib/api/market';
 import Breadcrumb from '@/components/layout/Breadcrumb';
 
 type CategoryFilter = 'All' | 'Global' | 'Domestic' | 'Sector-wise';
@@ -14,13 +15,17 @@ export default function TrendsPage() {
   const [filter, setFilter] = useState<CategoryFilter>('All');
   const [lastUpdated, setLastUpdated] = useState<string>('');
 
+  const [fetchError, setFetchError] = useState<string | null>(null);
+
   const fetchNews = async () => {
+    setFetchError(null);
     try {
-      const data = await getMarketNews();
-      setNews(data);
+      const data = await getMarketNewsFeed(20);
+      setNews(data.map(toMarketEvent));
       setLastUpdated(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
-    } catch (error) {
-      console.error('Failed to fetch market news:', error);
+    } catch {
+      setFetchError('Unable to load market news. Please try again later.');
+      setNews([]);
     } finally {
       setLoading(false);
     }
@@ -69,7 +74,14 @@ export default function TrendsPage() {
 
         <div className="mb-8">
           <Breadcrumb />
-          <p className="mt-2 text-sm text-slate-500">Live feed of global and domestic market events. Updated every 5 minutes.</p>
+          <p className="mt-2 text-sm text-slate-500">
+            Live feed powered by the FinXpert news API. Refreshes every 5 minutes.
+          </p>
+          {fetchError && (
+            <p className="mt-3 text-sm text-amber-800 bg-amber-50 border border-amber-100 rounded-xl px-3 py-2">
+              {fetchError}
+            </p>
+          )}
         </div>
 
         {/* Filters and Refresh Info */}
@@ -104,13 +116,24 @@ export default function TrendsPage() {
             </div>
           ) : filteredNews.length > 0 ? (
             filteredNews.map((event, index) => (
-              <div 
-                key={index} 
-                className="group relative border-2 border-slate-100 rounded-2xl p-6 hover:border-slate-800 transition-all bg-white hover:shadow-xl hover:-translate-y-1"
+              <a
+                key={`${event.url}-${index}`}
+                href={event.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="group block relative border-2 border-slate-100 rounded-2xl p-6 hover:border-slate-800 transition-all bg-white hover:shadow-xl hover:-translate-y-1 text-left no-underline text-inherit"
               >
                 <div className="flex flex-col md:flex-row md:items-start justify-between gap-4">
-                  <div className="flex-1">
-                    <div className="flex items-center gap-3 mb-2">
+                  {event.thumbnail ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={event.thumbnail}
+                      alt=""
+                      className="w-full md:w-40 h-36 md:h-28 object-cover rounded-xl shrink-0 border border-slate-100"
+                    />
+                  ) : null}
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-3 mb-2 flex-wrap">
                       <span className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold uppercase border-2 ${getImpactColor(event.impact)}`}>
                         <Zap className="h-3 w-3" />
                         {event.impact} IMPACT
@@ -121,18 +144,24 @@ export default function TrendsPage() {
                       </span>
                       <span className="text-[10px] font-medium text-slate-400 flex items-center gap-1">
                         <Clock className="h-3 w-3" />
-                        {new Date(event.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        {new Date(event.timestamp).toLocaleString([], {
+                          dateStyle: 'medium',
+                          timeStyle: 'short',
+                        })}
                       </span>
                     </div>
                     <h3 className="text-lg font-bold text-slate-800 group-hover:text-indigo-600 transition-colors uppercase tracking-tight">
                       {event.title}
                     </h3>
+                    {event.source ? (
+                      <p className="mt-1 text-xs font-semibold text-slate-500">{event.source}</p>
+                    ) : null}
                     <p className="mt-2 text-sm text-slate-600 leading-relaxed font-medium">
                       {event.summary}
                     </p>
                   </div>
                 </div>
-              </div>
+              </a>
             ))
           ) : (
             <div className="text-center py-20 border-2 border-dashed border-slate-200 rounded-3xl">

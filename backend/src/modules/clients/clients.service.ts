@@ -78,31 +78,38 @@ export class ClientsService {
       };
     }
 
-    const rawPass = items.map((client) => ({
-      client,
-      breakdown: this.healthScoreService.calculateGlobalScore(client, steps),
-    }));
-    const rawScores = rawPass.map((entry) => entry.breakdown.rawScore);
-    const globalMinRaw = rawScores.length ? Math.min(...rawScores) : 0;
-    const globalMaxRaw = rawScores.length ? Math.max(...rawScores) : 0;
+    // Same peer-normalization as findOne: min/max raw scores across ALL clients matching
+    // this query (not just the current page), so list and detail always show one number.
+    const allMatching = await this.prisma.client.findMany({
+      where,
+      include: { investments: true },
+    });
+    const globalRawScores = allMatching.map((c) =>
+      this.healthScoreService.calculateGlobalScore(c, steps).rawScore,
+    );
+    const globalMinRaw = globalRawScores.length ? Math.min(...globalRawScores) : 0;
+    const globalMaxRaw = globalRawScores.length ? Math.max(...globalRawScores) : 0;
+    const roundedMin = Math.round(globalMinRaw * 10) / 10;
+    const roundedMax = Math.round(globalMaxRaw * 10) / 10;
 
-    const projected = rawPass.map((entry) => {
+    const projected = items.map((client) => {
+      const breakdown = this.healthScoreService.calculateGlobalScore(client, steps);
       const normalized = this.healthScoreService.normalizeRawScore(
-        entry.breakdown.rawScore,
+        breakdown.rawScore,
         globalMinRaw,
         globalMaxRaw,
       );
-      const breakdown = {
-        ...entry.breakdown,
-        normalizedScore: Math.round(normalized * 10) / 10,
-        globalMinRaw: Math.round(globalMinRaw * 10) / 10,
-        globalMaxRaw: Math.round(globalMaxRaw * 10) / 10,
-        weightedTotal: Math.round(normalized * 10) / 10,
-      };
+      const weightedTotal = Math.round(normalized * 10) / 10;
       return {
-        ...entry.client,
-        calculatedHealthScore: breakdown.weightedTotal,
-        calculatedHealthBreakdown: breakdown,
+        ...client,
+        calculatedHealthScore: weightedTotal,
+        calculatedHealthBreakdown: {
+          ...breakdown,
+          normalizedScore: weightedTotal,
+          globalMinRaw: roundedMin,
+          globalMaxRaw: roundedMax,
+          weightedTotal,
+        },
       };
     });
 

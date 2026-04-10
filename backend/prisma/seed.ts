@@ -1,6 +1,6 @@
 import 'dotenv/config';
 import { PrismaPg } from '@prisma/adapter-pg';
-import { InvestmentCategory, InvestmentType, PrismaClient } from '@prisma/client';
+import { InvestmentCategory, InvestmentType, Prisma, PrismaClient } from '@prisma/client';
 import * as bcrypt from 'bcrypt';
 import * as fs from 'fs';
 import * as path from 'path';
@@ -78,6 +78,16 @@ async function main() {
     },
   });
   await prisma.todoItem.deleteMany({ where: { advisor_id: advisor.id } });
+  try {
+    await prisma.complianceObligation.deleteMany({ where: { advisor_id: advisor.id } });
+  } catch (e) {
+    if (!(e instanceof Prisma.PrismaClientKnownRequestError && e.code === 'P2021')) {
+      throw e;
+    }
+    console.warn(
+      '⚠️  Skipping compliance cleanup — table missing. Apply schema: npx prisma db push  (dev) or npx prisma migrate deploy',
+    );
+  }
   await prisma.client.deleteMany({ where: { advisor_id: advisor.id } });
 
   // 2. Create Clients with direct investments from normalized dataset
@@ -243,6 +253,43 @@ async function main() {
 
   console.log(`✅ Created ${todoItems.length} todo items`);
 
+  const complianceRows = [
+    {
+      advisor_id: advisor.id,
+      name: 'Quarterly Advance Tax Payment',
+      due_date: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000),
+      status: 'urgent',
+    },
+    {
+      advisor_id: advisor.id,
+      name: 'Annual GST Return Filing',
+      due_date: new Date(Date.now() + 15 * 24 * 60 * 60 * 1000),
+      status: 'pending',
+    },
+    {
+      advisor_id: advisor.id,
+      name: 'KYC Update — banking partners',
+      due_date: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000),
+      status: 'urgent',
+    },
+    {
+      advisor_id: advisor.id,
+      name: 'Form 15G / 15H submission window',
+      due_date: new Date(Date.now() + 25 * 24 * 60 * 60 * 1000),
+      status: 'pending',
+    },
+  ];
+  try {
+    await prisma.complianceObligation.createMany({ data: complianceRows });
+    console.log(`✅ Created ${complianceRows.length} compliance obligations`);
+  } catch (e) {
+    if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === 'P2021') {
+      console.warn('⚠️  Skipping compliance seed — ComplianceObligation table does not exist yet.');
+    } else {
+      throw e;
+    }
+  }
+
   // 4. Seed 6-month Portfolio Snapshots (Oct 2024 – Mar 2025)
   // Delete existing snapshots for this advisor's clients first (idempotent)
   await prisma.portfolioSnapshot.deleteMany({
@@ -297,4 +344,4 @@ main()
   })
   .finally(async () => {
     await prisma.$disconnect();
-  });
+  });

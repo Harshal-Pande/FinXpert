@@ -1,4 +1,4 @@
- 'use client';
+'use client';
 
 import { useEffect, useMemo, useState } from 'react';
 import { listClients, Client } from '@/lib/api/clients';
@@ -52,6 +52,7 @@ function computeAgeAdjustment(client: Client | undefined): number {
   return -0.35;
 }
 
+/** Mirrors backend HealthScoreService.getFactorValues so preview matches API scores. */
 function computeFactorValues(client: Client | undefined): Record<FormulaFactorId, number> {
   if (!client) {
     return {
@@ -66,34 +67,44 @@ function computeFactorValues(client: Client | undefined): Record<FormulaFactorId
     };
   }
   const investments = client.investments ?? [];
-  const totalInvestments = investments.reduce((sum, i) => sum + i.total_value, 0);
+  const totalInvestments = investments.reduce((sum, i) => sum + (i.total_value ?? 0), 0);
   const monthlyExpense = Math.max(client.monthly_expense ?? 0, 1);
   const annualIncome = Math.max(client.annual_income ?? 0, 1);
+  const age = Number.isFinite(client.age as number) ? Number(client.age) : null;
+
   const alr = Math.min(1, totalInvestments / (monthlyExpense * 24));
   const emergencyFund = Math.min(1, (client.emergency_fund ?? 0) / (monthlyExpense * 6));
   const diversification = Math.min(1, new Set(investments.map((i) => i.investment_type)).size / 4);
-  const costBasis = investments.reduce((sum, i) => sum + i.buy_rate * i.quantity, 0);
-  const simulatedMarket = investments.reduce((sum, i) => sum + i.buy_rate * 1.1 * i.quantity, 0);
+  const costBasis = investments.reduce((sum, i) => sum + (i.buy_rate ?? 0) * (i.quantity ?? 0), 0);
+  const simulatedMarket = investments.reduce(
+    (sum, i) => sum + (i.buy_rate ?? 0) * 1.1 * (i.quantity ?? 0),
+    0,
+  );
   const cushionRatio = costBasis > 0 ? (simulatedMarket - costBasis) / costBasis : 0.1;
   const investmentBehavior = cushionRatio <= 0.1 ? 0.55 : 1;
-  const cryptoValue = investments.filter((i) => i.investment_type === 'Crypto').reduce((sum, i) => sum + i.total_value, 0);
+
+  const cryptoValue = investments
+    .filter((i) => i.investment_type === 'Crypto')
+    .reduce((sum, i) => sum + i.total_value, 0);
   const cryptoPct = totalInvestments > 0 ? (cryptoValue / totalInvestments) * 100 : 0;
-  const cryptoConcentration = Math.min(1, cryptoPct / 100);
+  const risk = (client.risk_profile ?? '').toLowerCase();
+  const agePenaltyMultiplier =
+    age == null ? 1 : age >= 55 ? 1.2 : age >= 45 ? 1.05 : age <= 30 ? 0.85 : 1;
+  const cryptoConcentration =
+    risk === 'conservative' || risk === 'balanced'
+      ? Math.min(1, (Math.max(0, cryptoPct - 10) / 40) * agePenaltyMultiplier)
+      : Math.min(1, ((cryptoPct / 100) * 0.6) * agePenaltyMultiplier);
+
   const insuranceAdequacy = Math.min(1, (client.insurance_coverage ?? 0) / (annualIncome * 10));
   const debtValue = investments.filter((i) => i.investment_type === 'Debt').reduce((sum, i) => sum + i.total_value, 0);
-  const mfValue = investments.filter((i) => i.investment_type === 'Mutual_Fund').reduce((sum, i) => sum + i.total_value, 0);
+  const mfValue = investments
+    .filter((i) => i.investment_type === 'Mutual_Fund')
+    .reduce((sum, i) => sum + i.total_value, 0);
   const taxEfficientPct = totalInvestments > 0 ? ((debtValue + mfValue) / totalInvestments) * 100 : 0;
   const taxEfficiency = Math.min(1, taxEfficientPct / 100);
   const ageFactor =
-    client.age == null
-      ? 0
-      : client.age <= 30
-        ? 1
-        : client.age <= 45
-          ? 0.7
-          : client.age <= 55
-            ? 0.4
-            : 0.1;
+    age == null ? 0 : age <= 30 ? 1 : age <= 45 ? 0.7 : age <= 55 ? 0.4 : 0.1;
+
   return {
     alr,
     emergency_fund: emergencyFund,
@@ -125,16 +136,22 @@ function computePreview(client: Client | undefined, steps: HealthScoreFormulaSte
   };
 }
 
+/** Same as backend HealthScoreService.normalizeRawScore + 1dp rounding on the API. */
 function normalizeMinMax(rawScore: number, minRaw: number, maxRaw: number): number {
   if (maxRaw === minRaw) return 5.0;
   return clamp(((rawScore - minRaw) / (maxRaw - minRaw)) * 10);
 }
 
+function toApiScore(value: number): number {
+  return Math.round(value * 10) / 10;
+}
+
+/** Align labels with dashboard clients table (getHealthScoreLabel). */
 function getScoreBand(score: number) {
   if (score < 4) return { label: 'POOR', color: 'text-red-600 bg-red-50' };
   if (score < 6) return { label: 'WEAK', color: 'text-orange-600 bg-orange-50' };
-  if (score < 8) return { label: 'MODERATE', color: 'text-yellow-700 bg-yellow-50' };
-  if (score < 9.5) return { label: 'GOOD', color: 'text-lime-700 bg-lime-50' };
+  if (score < 7) return { label: 'MODERATE', color: 'text-yellow-700 bg-yellow-50' };
+  if (score < 8.5) return { label: 'GOOD', color: 'text-lime-700 bg-lime-50' };
   return { label: 'EXCELLENT', color: 'text-emerald-700 bg-emerald-50' };
 }
 
@@ -150,19 +167,28 @@ function formulaText(steps: HealthScoreFormulaStep[]) {
   return `Score = Norm( 5.0 ${expr} )`;
 }
 
+function stepsSignature(s: HealthScoreFormulaStep[]): string {
+  return JSON.stringify(
+    s.map((x) => ({ factorId: x.factorId, operation: x.operation, multiplier: x.multiplier })),
+  );
+}
+
 export default function HealthScoreBuilderPage() {
   const [clients, setClients] = useState<Client[]>([]);
   const [steps, setSteps] = useState<HealthScoreFormulaStep[]>([]);
+  const [baselineStepsSig, setBaselineStepsSig] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [sampleClientId, setSampleClientId] = useState<string>('');
 
   useEffect(() => {
-    Promise.all([listClients({ limit: 100 }), getHealthScoreFormula()])
+    Promise.all([listClients({ limit: 500 }), getHealthScoreFormula()])
       .then(([clientsRes, formula]) => {
         setClients(clientsRes.items);
-        setSteps(formula.steps ?? []);
+        const loaded = formula.steps ?? [];
+        setSteps(loaded);
+        setBaselineStepsSig(stepsSignature(loaded));
         setSampleClientId(clientsRes.items[0]?.id ?? '');
       })
       .catch((err) => setError(err instanceof Error ? err.message : 'Failed to load builder data'));
@@ -173,28 +199,31 @@ export default function HealthScoreBuilderPage() {
   const minRaw = rawPass.length ? Math.min(...rawPass.map((entry) => entry.preview.rawScore)) : 0;
   const maxRaw = rawPass.length ? Math.max(...rawPass.map((entry) => entry.preview.rawScore)) : 0;
   const selectedRaw = computePreview(selectedClient, steps);
+  const previewNormalized = toApiScore(
+    normalizeMinMax(selectedRaw.rawScore, minRaw, maxRaw),
+  );
+  const serverScore =
+    selectedClient?.calculatedHealthScore != null
+      ? toApiScore(selectedClient.calculatedHealthScore)
+      : null;
+  const formulaMatchesSaved =
+    baselineStepsSig != null && stepsSignature(steps) === baselineStepsSig;
+  const displayScore =
+    formulaMatchesSaved && serverScore != null ? serverScore : previewNormalized;
   const preview = {
     ...selectedRaw,
-    finalScore: round1(normalizeMinMax(selectedRaw.rawScore, minRaw, maxRaw)),
+    finalScore: previewNormalized,
   };
-  const globalAverageScore = rawPass.length
-    ? round1(
-        rawPass.reduce(
-          (sum, entry) => sum + normalizeMinMax(entry.preview.rawScore, minRaw, maxRaw),
-          0,
-        ) / rawPass.length,
-      )
-    : 0;
   const affectedPercent = useMemo(() => {
     if (!clients.length) return 0;
     const affectedCount = clients.reduce((count, client) => {
       const originalScore = client.calculatedHealthScore ?? 0;
       const rawScore = computePreview(client, steps).rawScore;
-      const newScore = normalizeMinMax(rawScore, minRaw, maxRaw);
+      const newScore = toApiScore(normalizeMinMax(rawScore, minRaw, maxRaw));
       return Math.abs(newScore - originalScore) > 0.5 ? count + 1 : count;
     }, 0);
     return Math.round((affectedCount / clients.length) * 100);
-  }, [clients, steps]);
+  }, [clients, steps, minRaw, maxRaw]);
 
   const addStep = (factorId: FormulaFactorId) => {
     setError(null);
@@ -216,6 +245,9 @@ export default function HealthScoreBuilderPage() {
     try {
       const updated = await updateHealthScoreFormula(steps);
       setSteps(updated.steps);
+      setBaselineStepsSig(stepsSignature(updated.steps ?? []));
+      const refreshed = await listClients({ limit: 500 });
+      setClients(refreshed.items);
       setMessage('Sequential formula saved successfully.');
       toast.success('Formula saved — scores recalculated for all clients.');
     } catch (err: unknown) {
@@ -231,10 +263,10 @@ export default function HealthScoreBuilderPage() {
   };
 
   const gaugeData = [
-    { name: 'score', value: preview.finalScore },
-    { name: 'rest', value: Math.max(10 - preview.finalScore, 0) },
+    { name: 'score', value: displayScore },
+    { name: 'rest', value: Math.max(10 - displayScore, 0) },
   ];
-  const scoreBand = getScoreBand(preview.finalScore);
+  const scoreBand = getScoreBand(displayScore);
 
   return (
     <div className="min-h-screen bg-slate-50 p-6">
@@ -373,8 +405,15 @@ export default function HealthScoreBuilderPage() {
                 </PieChart>
               </ResponsiveContainer>
               <div className="absolute inset-0 top-8 flex flex-col items-center justify-center">
-                <p className="text-4xl font-bold text-slate-900">{preview.finalScore.toFixed(1)}</p>
-                <p className="text-[10px] text-slate-500">Relative to Portfolio Performance</p>
+                <p className="text-4xl font-bold text-slate-900">{displayScore.toFixed(1)}</p>
+                <p className="text-[10px] text-slate-500 text-center px-1">
+                  {formulaMatchesSaved
+                    ? 'Same score as Clients & client profile'
+                    : 'Preview (unsaved formula — min/max from loaded clients)'}
+                </p>
+                {!formulaMatchesSaved && serverScore != null ? (
+                  <p className="text-[10px] text-slate-500">Saved list score: {serverScore.toFixed(1)}</p>
+                ) : null}
                 <p className={`mt-1 rounded-full px-2 py-0.5 text-xs font-semibold ${scoreBand.color}`}>
                   {scoreBand.label}
                 </p>
@@ -382,6 +421,9 @@ export default function HealthScoreBuilderPage() {
             </div>
 
             <div className="mt-2 space-y-1 text-xs text-slate-600">
+              {serverScore != null && (
+                <p className="font-medium text-slate-700">API score (Clients): {serverScore.toFixed(1)}</p>
+              )}
               <p>Raw Score: {preview.rawScore}</p>
               <p>Normalized: {preview.finalScore}</p>
               <p>
@@ -401,11 +443,11 @@ export default function HealthScoreBuilderPage() {
         <div className="mt-5 rounded-xl border border-slate-200 bg-white p-4">
           <h3 className="text-sm font-semibold text-slate-800">Health Score Scale</h3>
           <div className="mt-2 grid grid-cols-1 gap-2 text-xs sm:grid-cols-5">
-            <span className="rounded bg-red-50 px-2 py-1 text-red-700">0 - 3.9: POOR</span>
+            <span className="rounded bg-red-50 px-2 py-1 text-red-700">&lt; 4: POOR</span>
             <span className="rounded bg-orange-50 px-2 py-1 text-orange-700">4 - 5.9: WEAK</span>
-            <span className="rounded bg-yellow-50 px-2 py-1 text-yellow-700">6 - 7.9: MODERATE</span>
-            <span className="rounded bg-lime-50 px-2 py-1 text-lime-700">8 - 9.4: GOOD</span>
-            <span className="rounded bg-emerald-50 px-2 py-1 text-emerald-700">9.5 - 10: EXCELLENT</span>
+            <span className="rounded bg-yellow-50 px-2 py-1 text-yellow-700">6 - 6.9: MODERATE</span>
+            <span className="rounded bg-lime-50 px-2 py-1 text-lime-700">7 - 8.4: GOOD</span>
+            <span className="rounded bg-emerald-50 px-2 py-1 text-emerald-700">≥ 8.5: EXCELLENT</span>
           </div>
           <div className="mt-4 rounded-lg bg-slate-900 p-3 font-mono text-xs text-emerald-300">
             {formulaText(steps)}

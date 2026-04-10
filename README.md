@@ -9,6 +9,20 @@ AI-enabled financial advisory and portfolio management platform for financial ad
 
 ## Quick start
 
+### Full website (API + Next.js)
+
+From the **repository root** (requires PostgreSQL and `backend/.env`):
+
+```bash
+npm run simulate
+```
+
+- **Next.js dev server runs on port 3020** (`npm run dev` in `frontend/`) so it never steals **3001**, which is reserved for the Nest API. If Next binds to 3001, the API will crash with `EADDRINUSE` and the dashboard will show "Internal Server Error" / proxy failures.
+- App: http://localhost:3020/dashboard  
+- API: http://localhost:3001/api  
+- Ensure `frontend/.env.local` has `NEXT_PUBLIC_API_URL=http://localhost:3001/api` (see `frontend/.env.example`).
+- **NewsAPI:** use only `NEWS_API_KEY` in `backend/.env`. `NEWS_MARKET_QUERY` must be a search phrase (e.g. `Indian stock market`), not a second API key.
+
 ### Backend
 
 ```bash

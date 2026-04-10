@@ -15,6 +15,8 @@ import { DashboardModule } from './modules/dashboard/dashboard.module';
 import { TodosModule } from './modules/todos/todos.module';
 import { AdvisoryModule } from './modules/advisory/advisory.module';
 import { MarketModule } from './modules/market/market.module';
+import { ComplianceModule } from './modules/compliance/compliance.module';
+import { NewsModule } from './modules/news/news.module';
 import { HealthModule } from './health/health.module';
 import { KeepAliveService } from './common/services/keep-alive.service';
 
@@ -38,6 +40,8 @@ import { KeepAliveService } from './common/services/keep-alive.service';
     TodosModule,
     AdvisoryModule,
     MarketModule,
+    ComplianceModule,
+    NewsModule,
     HealthModule,
   ],
   providers: [KeepAliveService],

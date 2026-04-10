@@ -3,7 +3,8 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { Zap, Clock, ChevronRight } from 'lucide-react';
-import { getMarketNews, MarketEvent } from '@/lib/api/market';
+import { getMarketNewsFeed, toMarketEvent } from '@/lib/api/news';
+import type { MarketEvent } from '@/lib/api/market';
 
 export default function MarketHighlights() {
   const [news, setNews] = useState<MarketEvent[]>([]);
@@ -12,11 +13,11 @@ export default function MarketHighlights() {
 
   const fetchNews = async () => {
     try {
-      const data = await getMarketNews();
-      setNews(data.slice(0, 3));
+      const data = await getMarketNewsFeed(8);
+      setNews(data.map(toMarketEvent).slice(0, 3));
       setLastUpdated(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
-    } catch (error) {
-      console.error('Failed to fetch market news:', error);
+    } catch {
+      setNews([]);
     } finally {
       setLoading(false);
     }

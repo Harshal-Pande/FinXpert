@@ -331,42 +331,65 @@ export default function ClientDetailPage() {
           mfAllocation={mfAllocation}
         />
 
-        {/* Advisory Block */}
-        <div className="w-full border-2 border-slate-800 rounded-3xl p-6 mt-8 relative flex flex-col justify-center min-h-[160px]">
+        {/* Advisory */}
+        <div className="w-full border-2 border-slate-800 rounded-3xl p-6 mt-8 relative flex flex-col min-h-[140px]">
           <div className="absolute top-4 w-full text-center left-0 text-sm font-medium tracking-wide bg-white shrink-0 sm:px-4">
-            Advisory section(Directly mail with cron jobs)
+            Advisory
           </div>
 
-          <div className="mt-8 flex flex-col sm:flex-row items-center justify-between gap-6 px-4">
-            <p className="text-sm text-slate-600 flex-1">
-              Generate a personalized AI advisory report and queue it for mailing.
+          <div className="mt-10 space-y-4 px-2 sm:px-4">
+            <p className="text-sm text-slate-600 leading-relaxed max-w-2xl">
+              Build a one-page brief from this client&apos;s profile, portfolio, and risk context. Use it for
+              review meetings or follow-up notes—nothing is scheduled or sent automatically.
             </p>
-            <button
-              onClick={handleSendAdvisory}
-              disabled={sendingAdvisory}
-              className="flex items-center gap-2 rounded-xl bg-slate-800 px-6 py-3 text-sm font-semibold text-white hover:bg-slate-700 disabled:opacity-50 shrink-0"
-            >
-              <Send className="h-4 w-4" />
-              {sendingAdvisory ? 'Generating…' : 'Generate Advisory'}
-            </button>
+            <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+              <button
+                type="button"
+                onClick={handleSendAdvisory}
+                disabled={sendingAdvisory}
+                className="inline-flex items-center justify-center gap-2 rounded-xl bg-slate-800 px-5 py-2.5 text-sm font-semibold text-white hover:bg-slate-700 disabled:opacity-50 w-full sm:w-auto"
+              >
+                <Send className="h-4 w-4 shrink-0" />
+                {sendingAdvisory ? 'Generating…' : 'Generate advisory brief'}
+              </button>
+              {advisoryResult && advisoryResult.status !== 'error' && (
+                <span className="text-xs text-slate-500">Brief generated—see below.</span>
+              )}
+            </div>
           </div>
 
           {advisoryResult && (
-            <div className="mt-6 border-t-2 border-slate-800 pt-6 px-4">
-              <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">Advisory Generated</p>
-              <p className="mt-2 font-bold text-slate-800 text-lg">{advisoryResult.subject}</p>
-              <p className="mt-2 text-sm text-slate-700 leading-relaxed">{advisoryResult.body}</p>
-              {advisoryResult.advice && (
-                <div className="mt-4 p-4 bg-slate-50 rounded-xl border border-slate-200">
-                  <p className="text-sm font-medium text-slate-700">💡 {advisoryResult.advice}</p>
+            <div className="mt-6 border-t border-slate-200 pt-6 px-2 sm:px-4 space-y-4">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">Summary</p>
+                <p className="mt-1 font-semibold text-slate-900">{advisoryResult.subject}</p>
+              </div>
+              <div className="rounded-xl bg-slate-50 border border-slate-200 p-4">
+                <p className="text-xs font-semibold text-slate-500 mb-2">Narrative</p>
+                <p className="text-sm text-slate-700 leading-relaxed whitespace-pre-wrap">{advisoryResult.body}</p>
+              </div>
+              {advisoryResult.advice ? (
+                <div className="rounded-xl border border-indigo-100 bg-indigo-50/60 p-4">
+                  <p className="text-xs font-semibold text-indigo-900 mb-1">Recommendations</p>
+                  <p className="text-sm text-indigo-950 leading-relaxed whitespace-pre-wrap">{advisoryResult.advice}</p>
                 </div>
-              )}
-              <p className="mt-4 text-xs font-medium text-emerald-600 bg-emerald-50 inline-flex px-3 py-1 rounded-full">
-                Status: {advisoryResult.status}
-              </p>
+              ) : null}
+              <div className="flex flex-wrap items-center gap-2">
+                <span
+                  className={`text-xs font-medium px-2.5 py-1 rounded-full ${
+                    advisoryResult.status === 'error'
+                      ? 'bg-red-50 text-red-700'
+                      : 'bg-emerald-50 text-emerald-700'
+                  }`}
+                >
+                  {advisoryResult.status === 'error' ? 'Failed' : 'Generated'}
+                </span>
+                {advisoryResult.status !== 'error' ? (
+                  <span className="text-xs text-slate-500 capitalize">{advisoryResult.status.replace(/_/g, ' ')}</span>
+                ) : null}
+              </div>
             </div>
           )}
-
         </div>
 
       </div>

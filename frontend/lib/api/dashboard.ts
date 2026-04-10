@@ -1,5 +1,5 @@
 import { apiClient } from './client';
-import { MarketEvent } from './market';
+import type { MarketEvent, MarketPulse } from './market';
 
 export interface ActionItem {
   clientName?: string;
@@ -18,13 +18,7 @@ export interface StrategicInsight {
   category: 'REBALANCE' | 'DEPLOY' | 'RISK' | 'EXPERT';
 }
 
-export interface MarketPulse {
-  name: string;
-  value: string;
-  change: string;
-  pc: string;
-  trend: 'up' | 'down';
-}
+export type { MarketPulse };
 
 export interface DashboardSummary {
   totalClients: number;

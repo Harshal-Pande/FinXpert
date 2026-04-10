@@ -14,6 +14,7 @@ model Advisor {
   clients   Client[]
   todos     TodoItem[]
   health_score_formula HealthScoreFormula?
+  complianceObligations ComplianceObligation[]
 }
 
 model Client {
@@ -133,6 +134,21 @@ model TodoItem {
 
   @@index([advisor_id])
   @@index([status])
+}
+
+/// Regulatory / filing deadlines for the advisor book (drives GET /compliance/upcoming).
+model ComplianceObligation {
+  id         String   @id @default(uuid())
+  advisor_id String
+  name       String
+  due_date   DateTime
+  status     String   @default("pending") // pending | urgent
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+  advisor    Advisor  @relation(fields: [advisor_id], references: [id], onDelete: Cascade)
+
+  @@index([advisor_id])
+  @@index([due_date])
 }
 
 model PortfolioSnapshot {
