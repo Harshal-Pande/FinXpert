@@ -146,10 +146,16 @@ export default function DashboardPage() {
                 <div className="flex items-center gap-2">
                   <span className="text-[10px] font-bold text-slate-400 uppercase">Compare Benchmark</span>
                   <button
+                    type="button"
+                    role="switch"
+                    aria-checked={compareWithBenchmark}
+                    aria-label="Compare benchmark on chart"
                     onClick={() => setCompareWithBenchmark(!compareWithBenchmark)}
-                    className={`w-8 h-4 rounded-full transition-all relative ${compareWithBenchmark ? 'bg-indigo-600' : 'bg-slate-300'}`}
+                    className={`relative h-4 w-8 shrink-0 rounded-full transition-colors duration-200 ${compareWithBenchmark ? 'bg-indigo-600' : 'bg-slate-300'}`}
                   >
-                    <div className={`absolute top-0.5 w-3 h-3 bg-white rounded-full transition-all ${compareWithBenchmark ? 'left-4.5' : 'left-0.5'}`} />
+                    <span
+                      className={`absolute top-0.5 left-0.5 block h-3 w-3 rounded-full bg-white shadow-sm transition-transform duration-200 ease-out ${compareWithBenchmark ? 'translate-x-4' : 'translate-x-0'}`}
+                    />
                   </button>
                 </div>
               </div>
