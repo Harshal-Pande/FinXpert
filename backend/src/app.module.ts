@@ -16,6 +16,7 @@ import { TodosModule } from './modules/todos/todos.module';
 import { AdvisoryModule } from './modules/advisory/advisory.module';
 import { MarketModule } from './modules/market/market.module';
 import { HealthModule } from './health/health.module';
+import { KeepAliveService } from './common/services/keep-alive.service';
 
 @Module({
   imports: [
@@ -39,5 +40,6 @@ import { HealthModule } from './health/health.module';
     MarketModule,
     HealthModule,
   ],
+  providers: [KeepAliveService],
 })
 export class AppModule {}
