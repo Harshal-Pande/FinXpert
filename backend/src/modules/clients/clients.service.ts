@@ -44,7 +44,7 @@ export class ClientsService {
       where.risk_profile = riskProfile;
     }
 
-    const [items, total, formula] = await Promise.all([
+    const [items, total] = await Promise.all([
       this.prisma.client.findMany({
         where,
         include: { investments: true },
@@ -53,10 +53,30 @@ export class ClientsService {
         orderBy: { created_at: 'desc' },
       }),
       this.prisma.client.count({ where }),
-      this.formulaService.getForAdvisor(advisorId),
     ]);
 
-    const steps = formula.steps as FormulaStep[];
+    let steps: FormulaStep[] | null = null;
+    try {
+      const formula = await this.formulaService.getForAdvisor(advisorId);
+      steps = (formula.steps as FormulaStep[]) ?? [];
+    } catch {
+      // In a fresh production DB (no seeded advisor), the formula service can’t resolve an advisor.
+      // Clients list should still work; we simply omit calculated health score fields.
+      steps = null;
+    }
+
+    if (!steps) {
+      return {
+        items: items.map((client) => ({
+          ...client,
+          calculatedHealthScore: null,
+          calculatedHealthBreakdown: null,
+        })),
+        total,
+        page,
+        limit,
+      };
+    }
 
     const rawPass = items.map((client) => ({
       client,
