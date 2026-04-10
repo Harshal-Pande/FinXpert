@@ -1,6 +1,17 @@
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { PrismaService } from '../../database/prisma.service';
 
+type PrismaMiddlewareParams = {
+  model?: string;
+  action: string;
+  args?: any;
+};
+type PrismaMiddlewareNext = (params: PrismaMiddlewareParams) => Promise<any>;
+type PrismaMiddleware = (
+  params: PrismaMiddlewareParams,
+  next: PrismaMiddlewareNext,
+) => Promise<any>;
+
 @Injectable()
 export class PortfolioObserverService implements OnModuleInit {
   private readonly logger = new Logger(PortfolioObserverService.name);
@@ -8,7 +19,10 @@ export class PortfolioObserverService implements OnModuleInit {
   constructor(private readonly prisma: PrismaService) {}
 
   onModuleInit() {
-    this.prisma.$use(async (params, next) => {
+    // Prisma Driver Adapters may not expose `$use` on the generated TS type,
+    // but the runtime client still supports middleware registration.
+    (this.prisma as unknown as { $use: (middleware: PrismaMiddleware) => void }).$use(
+      async (params: PrismaMiddlewareParams, next: PrismaMiddlewareNext) => {
       const result = await next(params);
 
       try {
@@ -30,7 +44,8 @@ export class PortfolioObserverService implements OnModuleInit {
       }
 
       return result;
-    });
+      },
+    );
   }
 
   private extractClientId(source: unknown, fallback: unknown): string | null {
