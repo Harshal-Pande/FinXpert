@@ -13,7 +13,7 @@ async function bootstrap() {
   const allowedOrigins = [
     'http://localhost:3000',
     'http://localhost:3010',
-    'https://fin-xpert.vercel.app', // Update this with your exact Vercel URL
+    'https://fin-xpert-eight.vercel.app', 
     config.get<string>('FRONTEND_URL'),
   ].filter((origin): origin is string => Boolean(origin));
 
