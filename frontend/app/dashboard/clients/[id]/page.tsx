@@ -298,11 +298,11 @@ export default function ClientDetailPage() {
         <div className="mt-6 inline-flex rounded-xl border border-slate-300 bg-slate-100 p-1">
           <button
             type="button"
-            aria-label="Show market value"
+            aria-label="Show total holdings"
             onClick={() => setViewMode('VALUE')}
             className={`rounded-lg px-3 py-1 text-xs font-semibold ${viewMode === 'VALUE' ? 'bg-slate-800 text-white' : 'text-slate-700'}`}
           >
-            Market Value
+            Total Holdings
           </button>
           <button
             type="button"

@@ -7,7 +7,8 @@ export type FormulaFactorId =
   | 'investment_behavior'
   | 'crypto_concentration'
   | 'insurance_adequacy'
-  | 'tax_efficiency';
+  | 'tax_efficiency'
+  | 'age_factor';
 
 export interface HealthScoreFormulaStep {
   factorId: FormulaFactorId;

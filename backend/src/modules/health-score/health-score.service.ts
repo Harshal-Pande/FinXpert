@@ -32,6 +32,7 @@ export class HealthScoreService {
   }
 
   private getFactorValues(client: {
+    age?: number;
     annual_income: number;
     monthly_expense: number;
     emergency_fund: number | null;
@@ -49,6 +50,7 @@ export class HealthScoreService {
     const totalInvestments = investments.reduce((sum, i) => sum + (i.total_value ?? 0), 0);
     const monthlyExpense = Math.max(client.monthly_expense ?? 0, 1);
     const annualIncome = Math.max(client.annual_income ?? 0, 1);
+    const age = Number.isFinite(client.age as number) ? Number(client.age) : null;
 
     const alr = Math.min(1, totalInvestments / (monthlyExpense * 24));
     const emergencyFund = Math.min(1, (client.emergency_fund ?? 0) / (monthlyExpense * 6));
@@ -69,10 +71,12 @@ export class HealthScoreService {
       .reduce((sum, i) => sum + i.total_value, 0);
     const cryptoPct = totalInvestments > 0 ? (cryptoValue / totalInvestments) * 100 : 0;
     const risk = (client.risk_profile ?? '').toLowerCase();
+    const agePenaltyMultiplier =
+      age == null ? 1 : age >= 55 ? 1.2 : age >= 45 ? 1.05 : age <= 30 ? 0.85 : 1;
     const cryptoConcentration =
       risk === 'conservative' || risk === 'balanced'
-        ? Math.min(1, Math.max(0, cryptoPct - 10) / 40)
-        : Math.min(1, (cryptoPct / 100) * 0.6);
+        ? Math.min(1, (Math.max(0, cryptoPct - 10) / 40) * agePenaltyMultiplier)
+        : Math.min(1, ((cryptoPct / 100) * 0.6) * agePenaltyMultiplier);
 
     const insuranceAdequacy = Math.min(
       1,
@@ -95,6 +99,16 @@ export class HealthScoreService {
       crypto_concentration: cryptoConcentration,
       insurance_adequacy: insuranceAdequacy,
       tax_efficiency: taxEfficiency,
+      age_factor:
+        age == null
+          ? 0
+          : age <= 30
+            ? 1
+            : age <= 45
+              ? 0.7
+              : age <= 55
+                ? 0.4
+                : 0.1,
     };
   }
 
@@ -107,6 +121,7 @@ export class HealthScoreService {
 
   calculateGlobalScore(
     client: {
+      age?: number;
       annual_income: number;
       monthly_expense: number;
       emergency_fund: number | null;
@@ -131,6 +146,12 @@ export class HealthScoreService {
       const delta = factorValue * step.multiplier;
       rawScore = step.operation === 'subtract' ? rawScore - delta : rawScore + delta;
     }
+
+    // Age factor: small additive adjustment to reflect risk tolerance across life stage.
+    const age = Number.isFinite(client.age as number) ? Number(client.age) : null;
+    const ageAdjustment =
+      age == null ? 0 : age <= 30 ? 0.4 : age <= 45 ? 0.15 : age <= 55 ? -0.15 : -0.35;
+    rawScore += ageAdjustment;
     const normalizedScore = this.clampScore(rawScore / 5);
 
     return {

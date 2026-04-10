@@ -17,6 +17,7 @@ export class FormulaStepDto {
     'crypto_concentration',
     'insurance_adequacy',
     'tax_efficiency',
+    'age_factor',
   ])
   factorId: string;
 

@@ -17,6 +17,7 @@ interface PreviewResult {
   rawScore: number;
   finalScore: number;
   factorValues: Record<FormulaFactorId, number>;
+  ageAdjustment: number;
 }
 
 const FACTORS: Array<{ id: FormulaFactorId; label: string; desc: string }> = [
@@ -27,6 +28,7 @@ const FACTORS: Array<{ id: FormulaFactorId; label: string; desc: string }> = [
   { id: 'crypto_concentration', label: 'Crypto Concentration', desc: 'Volatility exposure level' },
   { id: 'insurance_adequacy', label: 'Insurance Adequacy', desc: 'Coverage vs income obligations' },
   { id: 'tax_efficiency', label: 'Tax Efficiency', desc: 'Tax-friendly allocation score' },
+  { id: 'age_factor', label: 'Age Factor', desc: 'Risk tolerance by client age band' },
 ];
 
 const COLORS = ['#10B981', '#E5E7EB'];
@@ -39,6 +41,17 @@ function round1(value: number): number {
   return Math.round(value * 10) / 10;
 }
 
+function computeAgeAdjustment(client: Client | undefined): number {
+  const age = client?.age;
+  if (age == null || !Number.isFinite(age)) return 0;
+  // Younger clients generally tolerate risk better; older clients skew conservative.
+  // Adjustment is deliberately small to complement (not override) formula steps.
+  if (age <= 30) return 0.4;
+  if (age <= 45) return 0.15;
+  if (age <= 55) return -0.15;
+  return -0.35;
+}
+
 function computeFactorValues(client: Client | undefined): Record<FormulaFactorId, number> {
   if (!client) {
     return {
@@ -49,6 +62,7 @@ function computeFactorValues(client: Client | undefined): Record<FormulaFactorId
       crypto_concentration: 0,
       insurance_adequacy: 0,
       tax_efficiency: 0,
+      age_factor: 0,
     };
   }
   const investments = client.investments ?? [];
@@ -70,6 +84,16 @@ function computeFactorValues(client: Client | undefined): Record<FormulaFactorId
   const mfValue = investments.filter((i) => i.investment_type === 'Mutual_Fund').reduce((sum, i) => sum + i.total_value, 0);
   const taxEfficientPct = totalInvestments > 0 ? ((debtValue + mfValue) / totalInvestments) * 100 : 0;
   const taxEfficiency = Math.min(1, taxEfficientPct / 100);
+  const ageFactor =
+    client.age == null
+      ? 0
+      : client.age <= 30
+        ? 1
+        : client.age <= 45
+          ? 0.7
+          : client.age <= 55
+            ? 0.4
+            : 0.1;
   return {
     alr,
     emergency_fund: emergencyFund,
@@ -78,6 +102,7 @@ function computeFactorValues(client: Client | undefined): Record<FormulaFactorId
     crypto_concentration: cryptoConcentration,
     insurance_adequacy: insuranceAdequacy,
     tax_efficiency: taxEfficiency,
+    age_factor: ageFactor,
   };
 }
 
@@ -89,8 +114,15 @@ function computePreview(client: Client | undefined, steps: HealthScoreFormulaSte
     const delta = value * step.multiplier;
     rawScore = step.operation === 'subtract' ? rawScore - delta : rawScore + delta;
   }
+  const ageAdjustment = computeAgeAdjustment(client);
+  rawScore += ageAdjustment;
   const finalScore = clamp(rawScore);
-  return { rawScore: round1(rawScore), finalScore: round1(finalScore), factorValues };
+  return {
+    rawScore: round1(rawScore),
+    finalScore: round1(finalScore),
+    factorValues,
+    ageAdjustment: round1(ageAdjustment),
+  };
 }
 
 function normalizeMinMax(rawScore: number, minRaw: number, maxRaw: number): number {
@@ -182,10 +214,8 @@ export default function HealthScoreBuilderPage() {
     setSaving(true);
     setError(null);
     try {
-      console.log('Saving Formula:', steps);
       const updated = await updateHealthScoreFormula(steps);
       setSteps(updated.steps);
-      console.log('Formula Saved Successfully');
       setMessage('Sequential formula saved successfully.');
       toast.success('Formula saved — scores recalculated for all clients.');
     } catch (err: unknown) {
@@ -205,8 +235,6 @@ export default function HealthScoreBuilderPage() {
     { name: 'rest', value: Math.max(10 - preview.finalScore, 0) },
   ];
   const scoreBand = getScoreBand(preview.finalScore);
-  const previewNeedleAngle = (preview.finalScore / 10) * 180;
-  const averageNeedleAngle = (globalAverageScore / 10) * 180;
 
   return (
     <div className="min-h-screen bg-slate-50 p-6">
@@ -344,30 +372,11 @@ export default function HealthScoreBuilderPage() {
                   </Pie>
                 </PieChart>
               </ResponsiveContainer>
-              <div className="absolute bottom-[28px] left-1/2 h-[64px] w-[64px] -translate-x-1/2">
-                <div
-                  className="absolute bottom-0 left-1/2 h-[2px] w-[64px] bg-emerald-700"
-                  style={{
-                    transformOrigin: 'bottom center',
-                    transform: `translateX(-100%) rotate(${previewNeedleAngle}deg)`,
-                  }}
-                />
-                <div
-                  className="absolute bottom-0 left-1/2 h-[2px] w-[64px] bg-slate-500/35"
-                  style={{
-                    transformOrigin: 'bottom center',
-                    transform: `translateX(-100%) rotate(${averageNeedleAngle}deg)`,
-                  }}
-                />
-              </div>
               <div className="absolute inset-0 top-8 flex flex-col items-center justify-center">
                 <p className="text-4xl font-bold text-slate-900">{preview.finalScore.toFixed(1)}</p>
                 <p className="text-[10px] text-slate-500">Relative to Portfolio Performance</p>
                 <p className={`mt-1 rounded-full px-2 py-0.5 text-xs font-semibold ${scoreBand.color}`}>
                   {scoreBand.label}
-                </p>
-                <p className="mt-1 text-[10px] text-slate-500">
-                  Ghost needle avg: {globalAverageScore.toFixed(1)}
                 </p>
               </div>
             </div>
@@ -375,6 +384,13 @@ export default function HealthScoreBuilderPage() {
             <div className="mt-2 space-y-1 text-xs text-slate-600">
               <p>Raw Score: {preview.rawScore}</p>
               <p>Normalized: {preview.finalScore}</p>
+              <p>
+                Age Factor:{' '}
+                <span className={preview.ageAdjustment >= 0 ? 'text-emerald-700' : 'text-amber-700'}>
+                  {preview.ageAdjustment >= 0 ? '+' : ''}
+                  {preview.ageAdjustment}
+                </span>
+              </p>
               <p>ALR: {preview.factorValues.alr}</p>
               <p>Emergency: {preview.factorValues.emergency_fund}</p>
               <p>Diversification: {preview.factorValues.diversification}</p>

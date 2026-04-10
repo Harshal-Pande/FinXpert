@@ -11,7 +11,8 @@ export type FormulaFactor =
   | 'investment_behavior'
   | 'crypto_concentration'
   | 'insurance_adequacy'
-  | 'tax_efficiency';
+  | 'tax_efficiency'
+  | 'age_factor';
 
 export type FormulaStep = {
   factorId: FormulaFactor;
@@ -27,6 +28,7 @@ const DEFAULT_STEPS: FormulaStep[] = [
   { factorId: 'crypto_concentration', operation: 'subtract', multiplier: 5.0 },
   { factorId: 'insurance_adequacy', operation: 'add', multiplier: 4.0 },
   { factorId: 'tax_efficiency', operation: 'add', multiplier: 3.0 },
+  { factorId: 'age_factor', operation: 'add', multiplier: 2.0 },
 ];
 
 @Injectable()

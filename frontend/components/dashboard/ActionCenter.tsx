@@ -1,7 +1,7 @@
 'use client';
 
 import { ActionItem } from '@/lib/api/dashboard';
-import { AlertCircle, Wallet, Calendar, ArrowRight } from 'lucide-react';
+import { AlertCircle, Wallet, Calendar } from 'lucide-react';
 
 export default function ActionCenter({ 
   highDrift, 
@@ -27,9 +27,7 @@ export default function ActionCenter({
                 <span className="text-xs font-bold text-slate-800">{item.clientName}</span>
                 <span className="text-[10px] text-red-500 font-medium">Excess Drift: {item.drift}</span>
               </div>
-              <button className="flex items-center gap-1 text-[10px] font-bold text-indigo-600 opacity-0 group-hover:opacity-100 transition-opacity">
-                {item.action} <ArrowRight className="h-3 w-3" />
-              </button>
+              {/* Removed: Rebalance/Top-up drift actions */}
             </div>
           ))}
         </div>
@@ -48,9 +46,7 @@ export default function ActionCenter({
                 <span className="text-xs font-bold text-slate-800">{item.clientName}</span>
                 <span className="text-[10px] text-amber-600 font-medium">Available: ₹{(item.amount! / 100000).toFixed(1)}L</span>
               </div>
-              <button className="flex items-center gap-1 text-[10px] font-bold text-indigo-600 opacity-0 group-hover:opacity-100 transition-opacity">
-                {item.action} <ArrowRight className="h-3 w-3" />
-              </button>
+              {/* Removed: Top-up / deploy action controls */}
             </div>
           ))}
         </div>

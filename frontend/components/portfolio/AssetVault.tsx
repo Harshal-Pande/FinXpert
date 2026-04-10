@@ -149,7 +149,7 @@ function PortfolioTable({
               colSpan={viewMode === 'VALUE' ? 1 : 2}
               className="px-4 py-2.5 text-xs font-semibold uppercase tracking-wider text-slate-500 text-right"
             >
-              {viewMode === 'VALUE' ? 'Market Value' : 'P / L'}
+              {viewMode === 'VALUE' ? 'Total Holdings' : 'P / L'}
             </th>
           </tr>
         </thead>
@@ -192,13 +192,9 @@ function PortfolioTable({
                   {formatInr(asset.avg_buy_price)}
                 </td>
 
-                {/* CMP — highlight if stressed */}
+                {/* CMP — keep neutral styling (no red) */}
                 <td className="px-4 py-3 text-right font-mono text-xs">
-                  {isStressed && stressed !== marketValue ? (
-                    <span className="text-red-500">{formatInr(asset.current_price)}</span>
-                  ) : (
-                    <span className="text-slate-700">{formatInr(asset.current_price)}</span>
-                  )}
+                  <span className="text-slate-700">{formatInr(asset.current_price)}</span>
                 </td>
 
                 {/* Market Value OR P/L */}
