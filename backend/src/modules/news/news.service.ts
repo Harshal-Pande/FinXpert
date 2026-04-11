@@ -9,7 +9,8 @@ export type MarketNewsFeedSource =
   | 'live'
   | 'fallback_no_api_key'
   | 'fallback_error'
-  | 'empty_live';
+  | 'empty_live'
+  | 'fallback_gemini';
 
 export interface MarketNewsItemDto {
   headline: string;
@@ -21,6 +22,13 @@ export interface MarketNewsItemDto {
   category: MarketNewsCategory;
   impact: MarketNewsImpact;
   sentiment?: 'Positive' | 'Negative' | 'Neutral';
+  metrics?: {
+    accuracy: number;
+    rmse: number;
+    mape: number;
+    mse: number;
+    mae: number;
+  };
 }
 
 export interface MarketNewsFeedResponse {
@@ -75,6 +83,7 @@ export class NewsService {
 
   private mapProviderToFeedSource(provider: NewsFetchProvider): MarketNewsFeedSource {
     if (provider === 'newsapi') return 'live';
+    if (provider === 'fallback_gemini') return 'fallback_gemini';
     if (provider === 'fallback_no_key') return 'fallback_no_api_key';
     if (provider === 'empty_live') return 'empty_live';
     return 'fallback_error';
@@ -91,6 +100,7 @@ export class NewsService {
       category: this.categorize(a.source, a.title),
       impact: this.inferImpact(a.title, a.description ?? ''),
       sentiment: a.sentiment,
+      metrics: a.metrics,
     };
   }
 

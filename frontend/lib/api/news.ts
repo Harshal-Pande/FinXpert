@@ -12,13 +12,21 @@ export interface MarketNewsItemDto {
   category: MarketEvent['category'];
   impact: MarketEvent['impact'];
   sentiment?: MarketEvent['sentiment'];
+  metrics?: {
+    accuracy: number;
+    rmse: number;
+    mape: number;
+    mse: number;
+    mae: number;
+  };
 }
 
 export type MarketNewsFeedSource =
   | 'live'
   | 'fallback_no_api_key'
   | 'fallback_error'
-  | 'empty_live';
+  | 'empty_live'
+  | 'fallback_gemini';
 
 export type NewsFeedScope = 'All' | 'Global' | 'Domestic' | 'Sector-wise';
 
@@ -77,5 +85,6 @@ export function toMarketEvent(item: MarketNewsItemDto): MarketEvent {
     url: item.url,
     thumbnail: item.thumbnail ?? undefined,
     sentiment: item.sentiment,
+    metrics: item.metrics,
   };
 }

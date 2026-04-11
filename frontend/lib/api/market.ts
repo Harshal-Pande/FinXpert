@@ -19,6 +19,13 @@ export interface MarketEvent {
   thumbnail?: string;
   /** Set on demo / fallback rows from the API for UI testing. */
   sentiment?: 'Positive' | 'Negative' | 'Neutral';
+  metrics?: {
+    accuracy: number;
+    rmse: number;
+    mape: number;
+    mse: number;
+    mae: number;
+  };
 }
 
 export async function getMarketNifty(): Promise<MarketPulse> {

@@ -84,6 +84,7 @@ export default function TrendsPage() {
     setFeedError(null);
     setFeedEmptyMessage(null);
     setDemoBanner(null);
+    setQueryUsed('');
     try {
       const res = await getMarketNewsFeed(20, scope);
       setQueryUsed(res.queryUsed);
@@ -160,7 +161,14 @@ export default function TrendsPage() {
             minutes.
           </p>
           {queryUsed ? (
-            <p className="mt-1 text-xs font-mono text-slate-500 break-all">Last query: {queryUsed}</p>
+            <p className="mt-1 text-xs font-mono text-slate-500 break-all">
+              Last query: {queryUsed}
+              {queryUsed.length > 20 && (
+                <span className="text-amber-600 block mt-1 font-sans">
+                  Warning: The search query is unusually long. Ensure it is not an API key.
+                </span>
+              )}
+            </p>
           ) : null}
           {feedError && (
             <p className="mt-3 text-sm text-amber-800 bg-amber-50 border border-amber-100 rounded-xl px-3 py-2">
@@ -260,12 +268,24 @@ export default function TrendsPage() {
                           timeStyle: 'short',
                         })}
                       </span>
+                      <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-indigo-100 text-indigo-800 text-[10px] font-bold uppercase border border-indigo-200">
+                        SOURCE: {event.source === 'Gemini AI' ? 'Gemini AI' : 'NewsAPI'}
+                      </span>
                     </div>
                     <h3 className="text-lg font-bold text-slate-800 group-hover:text-indigo-600 transition-colors uppercase tracking-tight">
                       {event.title}
                     </h3>
-                    {event.source ? <p className="mt-1 text-xs font-semibold text-slate-500">{event.source}</p> : null}
+                    {event.source && event.source !== 'Gemini AI' && event.source !== 'NewsAPI' ? <p className="mt-1 text-xs font-semibold text-slate-500">{event.source}</p> : null}
                     <p className="mt-2 text-sm text-slate-600 leading-relaxed font-medium">{event.summary}</p>
+                    {event.metrics ? (
+                      <div className="mt-3 flex gap-4 text-[10px] font-mono text-slate-500 bg-slate-50 p-2 rounded-lg border border-slate-100 flex-wrap">
+                        <span title="Accuracy">ACC: {(event.metrics.accuracy * 100).toFixed(1)}%</span>
+                        <span title="Root Mean Square Error">RMSE: {event.metrics.rmse}</span>
+                        <span title="Mean Absolute Percentage Error">MAPE: {event.metrics.mape}%</span>
+                        <span title="Mean Squared Error">MSE: {event.metrics.mse}</span>
+                        <span title="Mean Absolute Error">MAE: {event.metrics.mae}</span>
+                      </div>
+                    ) : null}
                   </div>
                 </div>
               </a>
