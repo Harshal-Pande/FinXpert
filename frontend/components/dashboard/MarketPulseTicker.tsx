@@ -1,7 +1,7 @@
 'use client';
 
 import { useMarketIndices } from '@/components/dashboard/MarketIndicesProvider';
-import { ArrowDownRight, ArrowUpRight } from 'lucide-react';
+import { ArrowDownRight, ArrowUpRight, Minus } from 'lucide-react';
 
 export default function MarketPulseTicker() {
   const { indices, loading } = useMarketIndices();
@@ -27,13 +27,19 @@ export default function MarketPulseTicker() {
             <span className="text-xs font-mono font-bold tabular-nums">{item.value}</span>
             <span
               className={`flex items-center gap-0.5 text-[10px] font-bold ${
-                item.trend === 'up' ? 'text-emerald-400' : 'text-red-400'
+                item.trend === 'up'
+                  ? 'text-emerald-400'
+                  : item.trend === 'down'
+                    ? 'text-red-400'
+                    : 'text-slate-400'
               }`}
             >
               {item.trend === 'up' ? (
                 <ArrowUpRight className="h-3 w-3 shrink-0" aria-hidden />
-              ) : (
+              ) : item.trend === 'down' ? (
                 <ArrowDownRight className="h-3 w-3 shrink-0" aria-hidden />
+              ) : (
+                <Minus className="h-3 w-3 shrink-0" aria-hidden />
               )}
               {item.pc}
             </span>

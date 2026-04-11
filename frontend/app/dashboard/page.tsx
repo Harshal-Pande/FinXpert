@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import {
   Users,
@@ -17,8 +17,8 @@ import { getMarketNewsFeed, toMarketEvent } from '@/lib/api/news';
 import type { MarketEvent } from '@/lib/api/market';
 import { ApiError } from '@/lib/api/client';
 import {
-  LineChart, Line, AreaChart, Area, XAxis, YAxis, CartesianGrid,
-  Tooltip, ResponsiveContainer, Legend
+  AreaChart, Area, XAxis, YAxis, CartesianGrid,
+  Tooltip, ResponsiveContainer
 } from 'recharts';
 import MarketPulseTicker from '@/components/dashboard/MarketPulseTicker';
 import MarketOverviewCards from '@/components/dashboard/MarketOverviewCards';
@@ -50,7 +50,6 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true);
   const [dashboardError, setDashboardError] = useState<string | null>(null);
   const [aumHistory, setAumHistory] = useState<AumHistoryPoint[]>([]);
-  const [compareWithBenchmark, setCompareWithBenchmark] = useState(false);
   const [lastUpdated, setLastUpdated] = useState<string>('');
   const [marketFeed, setMarketFeed] = useState<MarketEvent[]>([]);
   const [newsLoading, setNewsLoading] = useState(true);
@@ -107,11 +106,16 @@ export default function DashboardPage() {
   const formatInr = (v: number) =>
     new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', notation: 'compact', maximumFractionDigits: 1 }).format(v);
 
-  // Mock benchmark data synced with aumHistory
-  const chartData = aumHistory.map((p, i) => ({
-    ...p,
-    benchmarkValue: p.totalValue * (1 + (Math.sin(i * 0.5) * 0.05 + 0.02)), // Simulated Nifty 50 movement
-  }));
+  const chartData = useMemo(() => aumHistory.map((p) => ({ ...p })), [aumHistory]);
+
+  const aumPeriodStats = useMemo(() => {
+    if (aumHistory.length < 2) return { changePct: null as number | null, first: null as number | null, last: null as number | null };
+    const first = aumHistory[0].totalValue;
+    const last = aumHistory[aumHistory.length - 1].totalValue;
+    if (first <= 0) return { changePct: null, first, last };
+    const changePct = ((last - first) / first) * 100;
+    return { changePct, first, last };
+  }, [aumHistory]);
 
   if (loading && !summary) {
     return (
@@ -187,23 +191,23 @@ export default function DashboardPage() {
 
             {/* Box: Dynamic Total AUM History */}
             <GlassCard title="Total AUM History" className="min-h-[350px]">
-              <div className="flex items-center justify-between mb-6 pt-4">
-                <p className="text-xs text-slate-500 italic">Tracking growth vs market baseline</p>
-                <div className="flex items-center gap-2">
-                  <span className="text-[10px] font-bold text-slate-400 uppercase">Compare Benchmark</span>
-                  <button
-                    type="button"
-                    role="switch"
-                    aria-checked={compareWithBenchmark}
-                    aria-label="Compare benchmark on chart"
-                    onClick={() => setCompareWithBenchmark(!compareWithBenchmark)}
-                    className={`relative h-4 w-8 shrink-0 rounded-full transition-colors duration-200 ${compareWithBenchmark ? 'bg-indigo-600' : 'bg-slate-300'}`}
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between mb-6 pt-4">
+                <p className="text-xs text-slate-500">
+                  Aggregated portfolio value from advisor snapshots (same source as client history).
+                </p>
+                {aumPeriodStats.changePct != null ? (
+                  <p
+                    className={`text-xs font-bold tabular-nums shrink-0 ${
+                      aumPeriodStats.changePct >= 0 ? 'text-emerald-700' : 'text-red-700'
+                    }`}
                   >
-                    <span
-                      className={`absolute top-0.5 left-0.5 block h-3 w-3 rounded-full bg-white shadow-sm transition-transform duration-200 ease-out ${compareWithBenchmark ? 'translate-x-4' : 'translate-x-0'}`}
-                    />
-                  </button>
-                </div>
+                    Chart period: {aumPeriodStats.changePct >= 0 ? '+' : ''}
+                    {aumPeriodStats.changePct.toFixed(2)}% ({formatInr(aumPeriodStats.first!)} →{' '}
+                    {formatInr(aumPeriodStats.last!)})
+                  </p>
+                ) : (
+                  <p className="text-xs text-slate-400 shrink-0">Add more months of history to see period change.</p>
+                )}
               </div>
 
               <div className="w-full h-64">
@@ -214,17 +218,13 @@ export default function DashboardPage() {
                         <stop offset="5%" stopColor="#4f46e5" stopOpacity={0.15} />
                         <stop offset="95%" stopColor="#4f46e5" stopOpacity={0} />
                       </linearGradient>
-                      <linearGradient id="benchGradient" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="#94a3b8" stopOpacity={0.1} />
-                        <stop offset="95%" stopColor="#94a3b8" stopOpacity={0} />
-                      </linearGradient>
                     </defs>
                     <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
                     <XAxis dataKey="month" axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#94a3b8' }} />
                     <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#94a3b8' }} tickFormatter={(v) => formatInr(v)} />
                     <Tooltip
                       contentStyle={{ borderRadius: '16px', border: 'none', boxShadow: '0 10px 25px rgba(0,0,0,0.1)' }}
-                      formatter={(v: number) => [formatInr(v), '']}
+                      formatter={(v: number) => [formatInr(v), 'Total AUM']}
                     />
                     <Area
                       type="monotone"
@@ -235,18 +235,6 @@ export default function DashboardPage() {
                       fill="url(#aumGradient)"
                       dot={{ r: 4, fill: '#4f46e5', strokeWidth: 0 }}
                     />
-                    {compareWithBenchmark && (
-                      <Area
-                        type="monotone"
-                        dataKey="benchmarkValue"
-                        name="Nifty 50 Index"
-                        stroke="#94a3b8"
-                        strokeWidth={2}
-                        strokeDasharray="5 5"
-                        fill="url(#benchGradient)"
-                      />
-                    )}
-                    <Legend verticalAlign="top" height={36} iconType="circle" wrapperStyle={{ fontSize: '10px', textTransform: 'uppercase', fontWeight: 700 }} />
                   </AreaChart>
                 </ResponsiveContainer>
               </div>

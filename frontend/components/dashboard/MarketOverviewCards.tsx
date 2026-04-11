@@ -1,7 +1,7 @@
 'use client';
 
 import { useMarketIndices } from '@/components/dashboard/MarketIndicesProvider';
-import { TrendingDown, TrendingUp } from 'lucide-react';
+import { Minus, TrendingDown, TrendingUp } from 'lucide-react';
 
 function CardSkeleton() {
   return (
@@ -54,15 +54,24 @@ export default function MarketOverviewCards() {
             <div className="flex items-center gap-1.5">
               {item.trend === 'up' ? (
                 <TrendingUp className="h-4 w-4 text-emerald-600" aria-hidden />
-              ) : (
+              ) : item.trend === 'down' ? (
                 <TrendingDown className="h-4 w-4 text-red-500" aria-hidden />
+              ) : (
+                <Minus className="h-4 w-4 text-slate-400" aria-hidden />
               )}
               <span
                 className={`text-xs font-bold tabular-nums ${
-                  item.trend === 'up' ? 'text-emerald-600' : 'text-red-600'
+                  item.trend === 'up'
+                    ? 'text-emerald-600'
+                    : item.trend === 'down'
+                      ? 'text-red-600'
+                      : 'text-slate-500'
                 }`}
               >
                 {item.pc}
+                {item.trend === 'flat' ? (
+                  <span className="ml-1 font-normal text-slate-400">unch.</span>
+                ) : null}
               </span>
             </div>
           </div>

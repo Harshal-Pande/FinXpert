@@ -134,20 +134,24 @@ export class MarketDataService {
     value: string;
     change: string;
     pc: string;
-    trend: 'up' | 'down';
+    trend: 'up' | 'down' | 'flat';
   } {
     const delta = q.price - q.prevClose;
     const pct = (delta / q.prevClose) * 100;
-    const trend: 'up' | 'down' = delta >= 0 ? 'up' : 'down';
-    const sign = delta >= 0 ? '+' : '';
+    const flat =
+      !Number.isFinite(delta) ||
+      !Number.isFinite(pct) ||
+      (Math.abs(delta) < 10 ** -fractionDigits && Math.abs(pct) < 0.005);
+    const trend: 'up' | 'down' | 'flat' = flat ? 'flat' : delta > 0 ? 'up' : 'down';
+    const sign = flat ? '' : delta > 0 ? '+' : '';
     return {
       name: displayName,
       value: q.price.toLocaleString('en-IN', {
         minimumFractionDigits: fractionDigits,
         maximumFractionDigits: fractionDigits,
       }),
-      change: sign + delta.toFixed(fractionDigits),
-      pc: sign + pct.toFixed(2) + '%',
+      change: flat ? (0).toFixed(fractionDigits) : sign + delta.toFixed(fractionDigits),
+      pc: flat ? '0.00%' : sign + pct.toFixed(2) + '%',
       trend,
     };
   }
@@ -305,12 +309,15 @@ export class MarketDataService {
     const baseValue = 22453.8;
     const change = (Math.random() * 200 - 80).toFixed(2);
     const pc = ((parseFloat(change) / baseValue) * 100).toFixed(2);
+    const ch = parseFloat(change);
+    const trend: 'up' | 'down' | 'flat' = Math.abs(ch) < 1e-6 ? 'flat' : ch > 0 ? 'up' : 'down';
+    const sign = trend === 'flat' ? '' : ch > 0 ? '+' : '';
     return {
       name: 'NIFTY 50 (demo)',
-      value: (baseValue + parseFloat(change)).toLocaleString('en-IN', { minimumFractionDigits: 2 }),
-      change: (parseFloat(change) >= 0 ? '+' : '') + change,
-      pc: (parseFloat(change) >= 0 ? '+' : '') + pc + '%',
-      trend: parseFloat(change) >= 0 ? 'up' : 'down',
+      value: (baseValue + ch).toLocaleString('en-IN', { minimumFractionDigits: 2 }),
+      change: trend === 'flat' ? change : sign + change,
+      pc: trend === 'flat' ? '0.00%' : sign + pc + '%',
+      trend,
     };
   }
 
@@ -323,12 +330,15 @@ export class MarketDataService {
     const baseValue = 73876.15;
     const change = (Math.random() * 600 - 250).toFixed(2);
     const pc = ((parseFloat(change) / baseValue) * 100).toFixed(2);
+    const ch = parseFloat(change);
+    const trend: 'up' | 'down' | 'flat' = Math.abs(ch) < 1e-6 ? 'flat' : ch > 0 ? 'up' : 'down';
+    const sign = trend === 'flat' ? '' : ch > 0 ? '+' : '';
     return {
       name: 'SENSEX (demo)',
-      value: (baseValue + parseFloat(change)).toLocaleString('en-IN', { minimumFractionDigits: 2 }),
-      change: (parseFloat(change) >= 0 ? '+' : '') + change,
-      pc: (parseFloat(change) >= 0 ? '+' : '') + pc + '%',
-      trend: parseFloat(change) >= 0 ? 'up' : 'down',
+      value: (baseValue + ch).toLocaleString('en-IN', { minimumFractionDigits: 2 }),
+      change: trend === 'flat' ? change : sign + change,
+      pc: trend === 'flat' ? '0.00%' : sign + pc + '%',
+      trend,
     };
   }
 
@@ -340,13 +350,14 @@ export class MarketDataService {
       if (prev10g > 0) {
         const delta = now10g - prev10g;
         const pct = (delta / prev10g) * 100;
-        const trend: 'up' | 'down' = delta >= 0 ? 'up' : 'down';
-        const sign = delta >= 0 ? '+' : '';
+        const flat = Math.abs(delta) < 0.5 && Math.abs(pct) < 0.005;
+        const trend: 'up' | 'down' | 'flat' = flat ? 'flat' : delta > 0 ? 'up' : 'down';
+        const sign = flat ? '' : delta > 0 ? '+' : '';
         return {
           name: 'GOLD (₹/10g est.)',
           value: Math.round(now10g).toLocaleString('en-IN'),
-          change: sign + Math.round(delta).toString(),
-          pc: sign + pct.toFixed(2) + '%',
+          change: flat ? String(Math.round(delta)) : sign + Math.round(delta).toString(),
+          pc: flat ? '0.00%' : sign + pct.toFixed(2) + '%',
           trend,
         };
       }
@@ -355,12 +366,15 @@ export class MarketDataService {
     const baseValue = 66240;
     const change = (Math.random() * 300 - 150).toFixed(2);
     const pc = ((parseFloat(change) / baseValue) * 100).toFixed(2);
+    const ch = parseFloat(change);
+    const trend: 'up' | 'down' | 'flat' = Math.abs(ch) < 1e-6 ? 'flat' : ch > 0 ? 'up' : 'down';
+    const sign = trend === 'flat' ? '' : ch > 0 ? '+' : '';
     return {
       name: 'GOLD (demo)',
-      value: (baseValue + parseFloat(change)).toLocaleString('en-IN'),
-      change: (parseFloat(change) >= 0 ? '+' : '') + change,
-      pc: (parseFloat(change) >= 0 ? '+' : '') + pc + '%',
-      trend: parseFloat(change) >= 0 ? 'up' : 'down',
+      value: (baseValue + ch).toLocaleString('en-IN'),
+      change: trend === 'flat' ? change : sign + change,
+      pc: trend === 'flat' ? '0.00%' : sign + pc + '%',
+      trend,
     };
   }
 

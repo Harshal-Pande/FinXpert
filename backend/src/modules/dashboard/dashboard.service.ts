@@ -4,6 +4,11 @@ import { PrismaService } from '../../database/prisma.service';
 import { MarketDataService } from '../../services/market-data.service';
 import { ComplianceService } from '../compliance/compliance.service';
 import { NewsService, MarketNewsItemDto } from '../news/news.service';
+import { HealthScoreService } from '../health-score/health-score.service';
+import {
+  FormulaStep,
+  HealthScoreFormulaService,
+} from '../health-score/health-score-formula.service';
 
 export interface StrategicInsight {
   title: string;
@@ -81,6 +86,8 @@ type InvestmentWithClient = Investment & {
   };
 };
 
+type ClientInsightRow = { id: string; name: string; normalizedHealthScore: number };
+
 @Injectable()
 export class DashboardService {
   constructor(
@@ -88,6 +95,8 @@ export class DashboardService {
     private readonly newsService: NewsService,
     private readonly marketData: MarketDataService,
     private readonly compliance: ComplianceService,
+    private readonly healthScoreService: HealthScoreService,
+    private readonly healthScoreFormulaService: HealthScoreFormulaService,
   ) {}
 
   private mapNewsToRecent(items: MarketNewsItemDto[]): RecentNewsItem[] {
@@ -170,11 +179,7 @@ export class DashboardService {
   private buildStrategicInsights(
     newsItems: MarketNewsItemDto[],
     clientMap: Map<string, ClientAgg>,
-    allClients: Array<{
-      id: string;
-      name: string;
-      healthScores: Array<{ score: number }>;
-    }>,
+    clientInsightRows: ClientInsightRow[],
     marketStats: Awaited<ReturnType<MarketDataService['getMarketStats']>>,
     aggregatedBigCash: Array<{ name: string; total: number }>,
     totalAUM: number,
@@ -186,14 +191,14 @@ export class DashboardService {
     const marketDown =
       marketStats.nifty.trend === 'down' && marketStats.sensex.trend === 'down';
 
-    for (const c of allClients) {
-      const score = c.healthScores[0]?.score ?? 0;
+    for (const c of clientInsightRows) {
+      const score = c.normalizedHealthScore;
       if (score > 0 && score < 3.0) {
         push(
           {
             category: 'RISK',
             title: 'Critical Health Score',
-            recommendation: `Portfolio health for ${c.name} dropped to ${score.toFixed(1)}. Immediate risk review required.`,
+            recommendation: `Portfolio health for ${c.name} is ${score.toFixed(1)}/10 (peer-normalized). Immediate risk review required.`,
             impact: 'Capital Protection',
           },
           100,
@@ -328,7 +333,7 @@ export class DashboardService {
         {
           category: 'EXPERT',
           title: topNews.headline,
-          recommendation: `${sumLine}. Worth reviewing positioning across ${allClients.length} clients in light of this headline.`,
+          recommendation: `${sumLine}. Worth reviewing positioning across ${clientInsightRows.length} clients in light of this headline.`,
           impact: `${topNews.impact} impact news`,
         },
         40,
@@ -348,6 +353,64 @@ export class DashboardService {
     return out;
   }
 
+  /**
+   * Same peer-normalized 0–10 scores as GET /clients and client detail, for dashboard average and insights.
+   */
+  private async buildClientHealthContext(
+    advisorId: string | undefined,
+    clientWhere: Record<string, unknown>,
+  ): Promise<{ avgHealthScore: number; insightRows: ClientInsightRow[] }> {
+    const clients = await this.prisma.client.findMany({
+      where: clientWhere,
+      include: {
+        investments: true,
+        healthScores: { orderBy: { calculated_at: 'desc' }, take: 1 },
+      },
+    });
+
+    if (clients.length === 0) {
+      return { avgHealthScore: 0, insightRows: [] };
+    }
+
+    let steps: FormulaStep[];
+    try {
+      const formula = await this.healthScoreFormulaService.getForAdvisor(advisorId);
+      steps = (formula.steps as FormulaStep[]) ?? [];
+    } catch {
+      const avg =
+        clients.reduce((s, c) => s + (c.healthScores[0]?.score ?? 0), 0) / clients.length;
+      return {
+        avgHealthScore: Math.round(avg * 10) / 10,
+        insightRows: clients.map((c) => ({
+          id: c.id,
+          name: c.name,
+          normalizedHealthScore: c.healthScores[0]?.score ?? 0,
+        })),
+      };
+    }
+
+    const rawPool = clients.map((c) =>
+      this.healthScoreService.calculateGlobalScore(c, steps).rawScore,
+    );
+    const gMin = Math.min(...rawPool);
+    const gMax = Math.max(...rawPool);
+
+    const insightRows: ClientInsightRow[] = clients.map((c, i) => ({
+      id: c.id,
+      name: c.name,
+      normalizedHealthScore:
+        Math.round(
+          this.healthScoreService.normalizeRawScore(rawPool[i], gMin, gMax) * 10,
+        ) / 10,
+    }));
+
+    const sumNorm = insightRows.reduce((s, r) => s + r.normalizedHealthScore, 0);
+    return {
+      avgHealthScore: Math.round((sumNorm / insightRows.length) * 10) / 10,
+      insightRows,
+    };
+  }
+
   async getSummary(advisorId?: string) {
     const clientWhere: Record<string, unknown> = {};
     if (advisorId && advisorId !== 'undefined') {
@@ -358,7 +421,6 @@ export class DashboardService {
       totalClients,
       investments,
       marketAlerts,
-      allClients,
       todos,
       newsItems,
       upcomingCompliance,
@@ -382,14 +444,6 @@ export class DashboardService {
           },
         },
       }),
-      this.prisma.client.findMany({
-        where: clientWhere,
-        select: {
-          id: true,
-          name: true,
-          healthScores: { orderBy: { calculated_at: 'desc' }, take: 1 },
-        },
-      }),
       this.prisma.todoItem.count({
         where: {
           ...(advisorId && advisorId !== 'undefined' ? { advisor_id: advisorId } : {}),
@@ -401,12 +455,12 @@ export class DashboardService {
       this.marketData.getMarketStats(),
     ]);
 
+    const { avgHealthScore, insightRows } = await this.buildClientHealthContext(
+      advisorId,
+      clientWhere,
+    );
+
     const totalAUM = investments.reduce((sum, inv) => sum + inv.total_value, 0);
-    const avgHealthScore =
-      allClients.length > 0
-        ? allClients.reduce((sum, c) => sum + (c.healthScores[0]?.score || 0), 0) /
-          allClients.length
-        : 0;
 
     const cashAggregation = investments
       .filter((inv) => inv.category === InvestmentCategory.CASH)
@@ -428,7 +482,7 @@ export class DashboardService {
     const strategicInsights = this.buildStrategicInsights(
       newsItems,
       clientMap,
-      allClients,
+      insightRows,
       marketStats,
       aggregatedBigCash,
       totalAUM,

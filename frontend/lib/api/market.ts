@@ -5,7 +5,7 @@ export interface MarketPulse {
   value: string;
   change: string;
   pc: string;
-  trend: 'up' | 'down';
+  trend: 'up' | 'down' | 'flat';
 }
 
 export interface MarketEvent {

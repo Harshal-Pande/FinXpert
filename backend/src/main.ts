@@ -1,8 +1,44 @@
 import { NestFactory, Reflector } from '@nestjs/core';
 import { ValidationPipe, RequestMethod } from '@nestjs/common';
+import type { Application, NextFunction, Request, Response } from 'express';
 import { AppModule } from './app.module';
 import { ConfigService } from '@nestjs/config';
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
+
+/** HTML + JSON landing for GET / — Express runs this before Nest routing (Render opens `/` in the browser). */
+function attachApiRootPage(expressApp: Application, config: ConfigService) {
+  expressApp.use((req: Request, res: Response, next: NextFunction) => {
+    if (req.method !== 'GET') {
+      return next();
+    }
+    const path = req.path || req.url?.split('?')[0] || '';
+    if (path !== '/') {
+      return next();
+    }
+    const frontendUrl = config.get<string>('FRONTEND_URL')?.trim();
+    const accept = req.headers.accept ?? '';
+    if (accept.includes('text/html')) {
+      const link = frontendUrl
+        ? `<p><a href="${frontendUrl}">Open FinXpert app →</a></p>`
+        : '<p>Set <code>FRONTEND_URL</code> on Render to your Vercel URL for a direct link.</p>';
+      const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>FinXpert API</title><style>body{font-family:system-ui,sans-serif;max-width:40rem;margin:2rem auto;padding:0 1rem;line-height:1.5;color:#0f172a}code{background:#f1f5f9;padding:0 .2rem;border-radius:4px}a{color:#4f46e5}</style></head><body><h1>FinXpert API</h1><p>Backend is running. The web dashboard is not hosted on this URL.</p>${link}<p><a href="/health">Health</a> · API: <code>/api</code></p></body></html>`;
+      res.status(200).setHeader('Content-Type', 'text/html; charset=utf-8');
+      res.end(html);
+      return;
+    }
+    res.status(200).json({
+      service: 'FinXpert API',
+      status: 'ok',
+      message:
+        'This host runs the backend only. Open your deployed Next.js app for the FinXpert UI.',
+      frontend: frontendUrl || null,
+      endpoints: {
+        health: 'GET /health',
+        api: 'GET /api/* (e.g. /api/dashboard/summary)',
+      },
+    });
+  });
+}
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
@@ -26,6 +62,9 @@ async function bootstrap() {
     credentials: true,
     allowedHeaders: 'Content-Type, Accept, Authorization',
   });
+
+  // After CORS: landing page for GET / (Nest global prefix cannot reliably exclude `/`)
+  attachApiRootPage(app.getHttpAdapter().getInstance() as Application, config);
 
   app.setGlobalPrefix('api', {
     exclude: [{ path: 'health', method: RequestMethod.GET }],

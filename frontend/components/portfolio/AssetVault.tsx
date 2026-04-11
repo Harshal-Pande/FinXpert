@@ -45,6 +45,12 @@ const CATEGORY_COLORS: Record<string, string> = {
 };
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
+function unitCost(asset: Investment): number {
+  const a = asset.avg_buy_price;
+  if (a != null && a > 0) return a;
+  return asset.buy_rate > 0 ? asset.buy_rate : 0;
+}
+
 function formatInr(value: number, compact = false): string {
   return new Intl.NumberFormat('en-IN', {
     style: 'currency',
@@ -82,7 +88,7 @@ function getCategoryTotal(
       if (tab === 'mutual_fund') stressed = Math.max(0, base - (mfAllocation.deductions[asset.id] ?? 0));
     }
     if (viewMode === 'VALUE') return sum + stressed;
-    return sum + (stressed - asset.quantity * asset.buy_rate);
+    return sum + (stressed - asset.quantity * unitCost(asset));
   }, 0);
 }
 
@@ -158,7 +164,7 @@ function PortfolioTable({
           {assets.map((asset) => {
             const marketValue  = asset.quantity * asset.current_price;
             const stressed     = getStressedValue(asset, tab, activeSimulation, debtAllocation, mfAllocation);
-            const costBasis    = asset.quantity * asset.buy_rate;
+            const costBasis    = asset.quantity * unitCost(asset);
             const absReturn    = stressed - costBasis;
             const returnPct    = costBasis > 0 ? (absReturn / costBasis) * 100 : 0;
             const positive     = absReturn >= 0;
@@ -253,7 +259,7 @@ function PortfolioTable({
                   {(() => {
                     const total = assets.reduce((s, a) =>
                       s + getStressedValue(a, tab, activeSimulation, debtAllocation, mfAllocation)
-                        - a.quantity * a.buy_rate, 0);
+                        - a.quantity * unitCost(a), 0);
                     return (
                       <span className={total >= 0 ? 'text-emerald-700' : 'text-red-700'}>
                         {total >= 0 ? '+' : ''}{formatInr(total)}
@@ -263,7 +269,7 @@ function PortfolioTable({
                 </td>
                 <td className="px-4 py-2.5 text-right font-mono font-bold">
                   {(() => {
-                    const cost  = assets.reduce((s, a) => s + a.quantity * a.buy_rate, 0);
+                    const cost  = assets.reduce((s, a) => s + a.quantity * unitCost(a), 0);
                     const total = assets.reduce((s, a) =>
                       s + getStressedValue(a, tab, activeSimulation, debtAllocation, mfAllocation), 0);
                     const pct   = cost > 0 ? ((total - cost) / cost) * 100 : 0;
@@ -310,7 +316,7 @@ export default function AssetVault({
   }
 
   const total    = getCategoryTotal(assets, activeTab, viewMode, activeSimulation, debtAllocation, mfAllocation);
-  const costBase = assets.reduce((s, a) => s + a.quantity * a.buy_rate, 0);
+  const costBase = assets.reduce((s, a) => s + a.quantity * unitCost(a), 0);
   const changePct = costBase > 0 ? ((total - costBase) / costBase) * 100 : 0;
   const badge     = changeBadge(changePct);
   const activeTabMeta = TABS.find((t) => t.id === activeTab)!;

@@ -10,6 +10,13 @@ type Props = {
   medicalShockDeduction?: number;
 };
 
+/** One cost basis for P&amp;L: prefer avg_buy_price, else buy_rate (matches backend AssetsService). */
+function unitCost(inv: Investment): number {
+  const a = inv.avg_buy_price;
+  if (a != null && a > 0) return a;
+  return inv.buy_rate > 0 ? inv.buy_rate : 0;
+}
+
 function fallbackPerformance(investment: Investment) {
   if (investment.category === 'CASH') {
     return {
@@ -19,7 +26,8 @@ function fallbackPerformance(investment: Investment) {
       pnl_percentage: 0,
     };
   }
-  const invested_amount = investment.quantity * investment.avg_buy_price;
+  const cost = unitCost(investment);
+  const invested_amount = investment.quantity * cost;
   const current_value = investment.quantity * investment.current_price;
   const absolute_pnl = current_value - invested_amount;
   const pnl_percentage = invested_amount > 0 ? (absolute_pnl / invested_amount) * 100 : 0;
@@ -42,10 +50,10 @@ export default function AssetCard({
   medicalShockDeduction = 0,
 }: Props) {
   const perf = investment.performance ?? fallbackPerformance(investment);
-  const absoluteReturn = (investment.current_price - investment.buy_rate) * investment.quantity;
-  const returnPct = investment.buy_rate > 0
-    ? ((investment.current_price - investment.buy_rate) / investment.buy_rate) * 100
-    : 0;
+  const cost = unitCost(investment);
+  const absoluteReturn = (investment.current_price - cost) * investment.quantity;
+  const returnPct =
+    cost > 0 ? ((investment.current_price - cost) / cost) * 100 : 0;
   const marketValue = perf.current_value;
   const stressedMarketValue =
     activeSimulation === 'MARKET_MELTDOWN'
@@ -57,12 +65,13 @@ export default function AssetCard({
       : activeSimulation === 'MEDICAL_SHOCK'
       ? Math.max(0, marketValue - medicalShockDeduction)
       : marketValue;
-  const stressedAbsoluteReturn = stressedMarketValue - investment.quantity * investment.buy_rate;
+  const costBasis = investment.quantity * cost;
+  const stressedAbsoluteReturn = stressedMarketValue - costBasis;
   const stressedReturnPct =
-    investment.quantity * investment.buy_rate > 0
-      ? (stressedAbsoluteReturn / (investment.quantity * investment.buy_rate)) * 100
-      : 0;
-  const positive = (activeSimulation ? stressedAbsoluteReturn : absoluteReturn) >= 0;
+    costBasis > 0 ? (stressedAbsoluteReturn / costBasis) * 100 : 0;
+
+  const displayReturn = activeSimulation ? stressedAbsoluteReturn : absoluteReturn;
+  const displayReturnPct = activeSimulation ? stressedReturnPct : returnPct;
 
   return (
     <div className="rounded-lg border border-slate-200 p-3">
@@ -87,9 +96,11 @@ export default function AssetCard({
               <p className="text-sm font-semibold text-slate-900">{formatInr(perf.current_value)}</p>
             )
           ) : (
-            <p className={`text-sm font-semibold ${positive ? 'text-green-600' : 'text-red-600'}`}>
-              {formatInr(activeSimulation ? stressedAbsoluteReturn : absoluteReturn)} (
-              {(activeSimulation ? stressedReturnPct : returnPct).toFixed(2)}%)
+            <p
+              className={`text-sm font-semibold ${displayReturn >= 0 ? 'text-green-600' : 'text-red-600'}`}
+            >
+              {formatInr(displayReturn)} ({displayReturnPct >= 0 ? '+' : ''}
+              {displayReturnPct.toFixed(2)}%)
             </p>
           )}
         </div>
