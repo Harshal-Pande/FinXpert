@@ -5,19 +5,37 @@ import Link from 'next/link';
 import { Zap, Clock, ChevronRight } from 'lucide-react';
 import { getMarketNewsFeed, toMarketEvent } from '@/lib/api/news';
 import type { MarketEvent } from '@/lib/api/market';
+import { ApiError } from '@/lib/api/client';
 
 export default function MarketHighlights() {
   const [news, setNews] = useState<MarketEvent[]>([]);
   const [loading, setLoading] = useState(true);
   const [lastUpdated, setLastUpdated] = useState<string>('');
+  const [highlightError, setHighlightError] = useState<string | null>(null);
 
   const fetchNews = async () => {
+    setLoading(true);
+    setHighlightError(null);
     try {
       const data = await getMarketNewsFeed(8);
+      if (data.length === 0) {
+        setNews([]);
+        setHighlightError(
+          'News feed empty — check NEXT_PUBLIC_API_URL and server NewsAPI logs.',
+        );
+        return;
+      }
       setNews(data.map(toMarketEvent).slice(0, 3));
       setLastUpdated(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
-    } catch {
+    } catch (e) {
       setNews([]);
+      if (e instanceof ApiError && (e.status === 404 || e.status === 502 || e.status === 503 || e.status === 504)) {
+        setHighlightError('Unable to reach news server.');
+      } else if (e instanceof ApiError) {
+        setHighlightError(e.message);
+      } else {
+        setHighlightError('Unable to reach news server.');
+      }
     } finally {
       setLoading(false);
     }
@@ -53,6 +71,14 @@ export default function MarketHighlights() {
       </div>
 
       <div className="mt-4 flex flex-1 flex-col gap-4">
+        {highlightError && (
+          <p className="rounded-xl border border-amber-100 bg-amber-50 px-3 py-2 text-xs text-amber-900">
+            {highlightError}
+          </p>
+        )}
+        {!highlightError && news.length === 0 && !loading && (
+          <p className="text-center text-xs text-slate-400">No headlines available.</p>
+        )}
         {news.map((item, index) => (
           <div key={index} className="flex items-start gap-3">
             <div className="mt-1 flex h-4 w-4 shrink-0 items-center justify-center">

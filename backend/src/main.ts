@@ -46,6 +46,11 @@ async function bootstrap() {
 
   // 1. DYNAMIC CORS CONFIGURATION
   // This allows local dev and your production Vercel deployment
+  const fromEnvList =
+    process.env.CORS_ORIGINS?.split(',')
+      .map((o) => o.trim())
+      .filter(Boolean) ?? [];
+
   const allowedOrigins = [
     'http://localhost:3000',
     'http://localhost:3010',
@@ -53,6 +58,7 @@ async function bootstrap() {
     'http://127.0.0.1:3020',
     'http://127.0.0.1:3000',
     'https://fin-xpert-eight.vercel.app',
+    ...fromEnvList,
     config.get<string>('FRONTEND_URL'),
   ].filter((origin): origin is string => Boolean(origin));
 

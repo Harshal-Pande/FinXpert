@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { Clock, Filter, Globe, Home, Layers, Zap } from 'lucide-react';
 import { getMarketNewsFeed, toMarketEvent } from '@/lib/api/news';
 import type { MarketEvent } from '@/lib/api/market';
+import { ApiError } from '@/lib/api/client';
 import Breadcrumb from '@/components/layout/Breadcrumb';
 
 type CategoryFilter = 'All' | 'Global' | 'Domestic' | 'Sector-wise';
@@ -15,17 +16,37 @@ export default function TrendsPage() {
   const [filter, setFilter] = useState<CategoryFilter>('All');
   const [lastUpdated, setLastUpdated] = useState<string>('');
 
-  const [fetchError, setFetchError] = useState<string | null>(null);
+  /** Network / HTTP errors (wrong URL, CORS, 404 route, server down). */
+  const [feedError, setFeedError] = useState<string | null>(null);
+  /** 200 OK but empty or non-array payload — provider/key/rate-limit. */
+  const [feedEmptyMessage, setFeedEmptyMessage] = useState<string | null>(null);
 
   const fetchNews = async () => {
-    setFetchError(null);
+    setLoading(true);
+    setFeedError(null);
+    setFeedEmptyMessage(null);
     try {
       const data = await getMarketNewsFeed(20);
+      if (data.length === 0) {
+        setNews([]);
+        setFeedEmptyMessage(
+          'News feed returned no articles. The news server may be rate-limited or the API key may need attention — check Render logs for NewsAPI messages.',
+        );
+        return;
+      }
       setNews(data.map(toMarketEvent));
       setLastUpdated(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
-    } catch {
-      setFetchError('Unable to load market news. Please try again later.');
+    } catch (e) {
       setNews([]);
+      if (e instanceof ApiError) {
+        if (e.status === 404 || e.status === 502 || e.status === 503 || e.status === 504) {
+          setFeedError('Unable to reach news server.');
+        } else {
+          setFeedError(e.message || 'Unable to reach news server.');
+        }
+      } else {
+        setFeedError('Unable to reach news server.');
+      }
     } finally {
       setLoading(false);
     }
@@ -77,9 +98,14 @@ export default function TrendsPage() {
           <p className="mt-2 text-sm text-slate-500">
             Live feed powered by the FinXpert news API. Refreshes every 5 minutes.
           </p>
-          {fetchError && (
+          {feedError && (
             <p className="mt-3 text-sm text-amber-800 bg-amber-50 border border-amber-100 rounded-xl px-3 py-2">
-              {fetchError}
+              {feedError}
+            </p>
+          )}
+          {feedEmptyMessage && !feedError && (
+            <p className="mt-3 text-sm text-slate-700 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2">
+              {feedEmptyMessage}
             </p>
           )}
         </div>
@@ -163,9 +189,17 @@ export default function TrendsPage() {
                 </div>
               </a>
             ))
-          ) : (
+          ) : news.length > 0 ? (
             <div className="text-center py-20 border-2 border-dashed border-slate-200 rounded-3xl">
               <p className="text-slate-400 font-medium italic">No news events found for this category.</p>
+            </div>
+          ) : feedEmptyMessage ? (
+            <div className="text-center py-20 border-2 border-dashed border-slate-200 rounded-3xl">
+              <p className="text-slate-500 font-medium">{feedEmptyMessage}</p>
+            </div>
+          ) : (
+            <div className="text-center py-20 border-2 border-dashed border-slate-200 rounded-3xl">
+              <p className="text-slate-500 font-medium">Unable to reach news server.</p>
             </div>
           )}
         </div>

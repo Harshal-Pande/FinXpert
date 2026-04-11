@@ -13,9 +13,14 @@ export interface MarketNewsItemDto {
   impact: MarketEvent['impact'];
 }
 
+function coerceNewsArray(payload: unknown): MarketNewsItemDto[] {
+  return Array.isArray(payload) ? (payload as MarketNewsItemDto[]) : [];
+}
+
 export async function getMarketNewsFeed(limit = 10): Promise<MarketNewsItemDto[]> {
   const capped = Math.min(30, Math.max(1, limit));
-  return apiClient<MarketNewsItemDto[]>(`/news/market?limit=${capped}`);
+  const raw = await apiClient<unknown>(`/news/market?limit=${capped}`);
+  return coerceNewsArray(raw);
 }
 
 /** Normalized to shared MarketEvent shape for feeds and dashboard. */

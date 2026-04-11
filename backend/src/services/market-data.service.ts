@@ -244,29 +244,59 @@ export class MarketDataService {
   ): Promise<{ query: string; articles: NewsArticle[] }> {
     if (!this.newsApiKey) {
       this.logger.warn('NEWS_API_KEY not set, returning mock news');
-      return { query, articles: this.getMockNews() };
+      return { query, articles: this.getFallbackNewsArticles() };
     }
 
     try {
       const url = `https://newsapi.org/v2/everything?q=${encodeURIComponent(query)}&sortBy=publishedAt&pageSize=${pageSize}&apiKey=${this.newsApiKey}`;
       const res = await fetch(url);
-      const json = await res.json();
+      const rawText = await res.text();
+      let json: Record<string, unknown>;
+      try {
+        json = JSON.parse(rawText) as Record<string, unknown>;
+      } catch {
+        this.logger.warn(
+          `NewsAPI: non-JSON response (HTTP ${res.status}) bodyPrefix=${rawText.slice(0, 200)}`,
+        );
+        return { query, articles: this.getFallbackNewsArticles() };
+      }
 
-      const articles: NewsArticle[] = (json.articles ?? []).map(
-        (a: Record<string, unknown>) => ({
-          title: (a.title as string) ?? '',
-          description: (a.description as string) ?? '',
-          url: (a.url as string) ?? '#',
-          source: (a.source as Record<string, string>)?.name ?? 'Unknown',
-          publishedAt: (a.publishedAt as string) ?? new Date().toISOString(),
-          urlToImage: typeof a.urlToImage === 'string' ? a.urlToImage : undefined,
-        }),
-      );
+      if (!res.ok) {
+        this.logger.warn(
+          `NewsAPI HTTP ${res.status}: ${JSON.stringify({ status: json.status, code: json.code, message: json.message }).slice(0, 500)}`,
+        );
+        return { query, articles: this.getFallbackNewsArticles() };
+      }
 
+      if (json.status === 'error') {
+        this.logger.warn(
+          `NewsAPI provider error: ${JSON.stringify({ code: json.code, message: json.message })}`,
+        );
+        return { query, articles: this.getFallbackNewsArticles() };
+      }
+
+      const rawArticles = Array.isArray(json.articles) ? json.articles : [];
+      const articles: NewsArticle[] = rawArticles.map((a: Record<string, unknown>) => ({
+        title: (a.title as string) ?? '',
+        description: (a.description as string) ?? '',
+        url: (a.url as string) ?? '#',
+        source: (a.source as Record<string, string>)?.name ?? 'Unknown',
+        publishedAt: (a.publishedAt as string) ?? new Date().toISOString(),
+        urlToImage: typeof a.urlToImage === 'string' ? a.urlToImage : undefined,
+      }));
+
+      if (articles.length === 0) {
+        this.logger.warn(
+          `NewsAPI returned 0 articles (query="${query}", pageSize=${pageSize}). totalResults=${json.totalResults ?? 'n/a'}`,
+        );
+        return { query, articles: this.getFallbackNewsArticles() };
+      }
+
+      this.logger.log(`NewsAPI OK: ${articles.length} articles for query="${query}"`);
       return { query, articles };
     } catch (error) {
       this.logger.error('NewsAPI fetch failed:', error);
-      return { query, articles: this.getMockNews() };
+      return { query, articles: this.getFallbackNewsArticles() };
     }
   }
 
@@ -389,6 +419,11 @@ export class MarketDataService {
       close: basePrice + Math.random() * 50 - 25,
       volume: Math.floor(Math.random() * 1000000),
     }));
+  }
+
+  /** Curated demo articles when NewsAPI is unavailable, errors, or returns no usable rows. */
+  getFallbackNewsArticles(): NewsArticle[] {
+    return this.getMockNews();
   }
 
   private getMockNews(): NewsArticle[] {

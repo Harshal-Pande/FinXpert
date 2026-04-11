@@ -78,14 +78,25 @@ export default function DashboardPage() {
     setNewsLoading(true);
     try {
       const raw = await getMarketNewsFeed(10);
+      if (raw.length === 0) {
+        setMarketFeed([]);
+        setNewsError(
+          'News feed returned no articles. Check the API URL (NEXT_PUBLIC_API_URL) and Render logs for NewsAPI errors or rate limits.',
+        );
+        return;
+      }
       setMarketFeed(raw.map(toMarketEvent));
       setNewsUpdated(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
     } catch (e) {
-      const msg =
-        e instanceof ApiError
-          ? e.message
-          : 'Unable to load market news. Please try again later.';
-      setNewsError(msg);
+      if (e instanceof ApiError) {
+        if (e.status === 404 || e.status === 502 || e.status === 503 || e.status === 504) {
+          setNewsError('Unable to reach news server.');
+        } else {
+          setNewsError(e.message || 'Unable to reach news server.');
+        }
+      } else {
+        setNewsError('Unable to reach news server.');
+      }
     } finally {
       setNewsLoading(false);
     }
@@ -342,7 +353,9 @@ export default function DashboardPage() {
                     <div className="h-16 rounded-xl bg-slate-100" />
                   </div>
                 ) : marketFeed.length === 0 && !newsError ? (
-                  <p className="text-[10px] text-slate-400 italic py-4 text-center">No articles yet.</p>
+                  <p className="text-[10px] text-slate-400 italic py-4 text-center">
+                    No headlines loaded yet.
+                  </p>
                 ) : (
                   marketFeed.slice(0, 10).map((news, i) => (
                     <a

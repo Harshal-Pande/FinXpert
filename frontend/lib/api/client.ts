@@ -1,14 +1,22 @@
 /**
  * HTTP client for the Nest API.
  *
- * Set `NEXT_PUBLIC_API_URL` to the full API base including `/api` (e.g. `https://api.example.com/api`).
+ * Set `NEXT_PUBLIC_API_URL` to your API host. If you omit `/api`, it is appended automatically
+ * (e.g. `https://finxpert-gl51.onrender.com` → `https://finxpert-gl51.onrender.com/api`).
  * In development, relative `/api` is avoided: traffic goes to `BACKEND_ORIGIN` (default
  * `http://127.0.0.1:3001`) + `/api` so the browser does not depend on Next rewrites when the API restarts.
  */
+function normalizeHttpApiBase(url: string): string {
+  const trimmed = url.replace(/\/$/, '');
+  // Vercel often sets origin only (e.g. https://api.onrender.com). Nest uses global prefix `/api`.
+  if (trimmed.endsWith('/api')) return trimmed;
+  return `${trimmed}/api`;
+}
+
 function resolveApiBase(): string {
   const fromEnv = process.env.NEXT_PUBLIC_API_URL?.trim();
   if (fromEnv?.startsWith('http://') || fromEnv?.startsWith('https://')) {
-    return fromEnv.replace(/\/$/, '');
+    return normalizeHttpApiBase(fromEnv);
   }
   if (process.env.NODE_ENV === 'development') {
     if (typeof window !== 'undefined') {

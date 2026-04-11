@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { MarketDataService } from '../../services/market-data.service';
 
 export type MarketNewsCategory = 'Global' | 'Domestic' | 'Sector-wise';
@@ -26,6 +26,8 @@ const HIGH_IMPACT_HINTS =
 
 @Injectable()
 export class NewsService {
+  private readonly logger = new Logger(NewsService.name);
+
   constructor(private readonly marketData: MarketDataService) {}
 
   private categorize(source: string, title: string): MarketNewsCategory {
@@ -43,12 +45,17 @@ export class NewsService {
   }
 
   async getMarketNews(limit = 10): Promise<MarketNewsItemDto[]> {
-    const capped = Math.min(30, Math.max(5, limit));
+    const capped = Math.min(30, Math.max(1, limit));
     const query = this.marketData.getDefaultNewsQuery();
     const { articles } = await this.marketData.fetchFinancialNews(query, Math.max(20, capped));
 
-    const sorted = [...articles]
-      .filter((a) => a.title && a.url)
+    let pool = [...articles].filter((a) => a.title && a.url);
+    if (pool.length === 0) {
+      this.logger.warn('News feed: no articles with title+url after filter; using fallback headlines');
+      pool = this.marketData.getFallbackNewsArticles().filter((a) => a.title && a.url);
+    }
+
+    const sorted = pool
       .sort(
         (a, b) =>
           new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime(),
