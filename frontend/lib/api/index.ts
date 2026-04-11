@@ -14,6 +14,9 @@ export {
   getMarketNewsFeed,
   toMarketEvent,
   type MarketNewsItemDto,
+  type MarketNewsFeedResponse,
+  type MarketNewsFeedSource,
+  type NewsFeedScope,
 } from './news';
 export {
   fetchMarketIndices,

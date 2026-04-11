@@ -17,6 +17,8 @@ export interface MarketEvent {
   timestamp: string;
   url: string;
   thumbnail?: string;
+  /** Set on demo / fallback rows from the API for UI testing. */
+  sentiment?: 'Positive' | 'Negative' | 'Neutral';
 }
 
 export async function getMarketNifty(): Promise<MarketPulse> {

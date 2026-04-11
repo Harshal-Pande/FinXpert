@@ -77,15 +77,26 @@ export default function DashboardPage() {
     setNewsError(null);
     setNewsLoading(true);
     try {
-      const raw = await getMarketNewsFeed(10);
-      if (raw.length === 0) {
+      const res = await getMarketNewsFeed(10, 'All');
+      if (res.items.length === 0) {
         setMarketFeed([]);
         setNewsError(
-          'News feed returned no articles. Check the API URL (NEXT_PUBLIC_API_URL) and Render logs for NewsAPI errors or rate limits.',
+          res.feedSource === 'fallback_no_api_key'
+            ? 'News: demo mode — NEWS_API_KEY is not set on the server.'
+            : res.feedSource === 'empty_live'
+              ? `News: no articles for query "${res.queryUsed}". Check NewsAPI / rate limits.`
+              : 'News feed returned no articles. Check NEXT_PUBLIC_API_URL and Render logs.',
         );
         return;
       }
-      setMarketFeed(raw.map(toMarketEvent));
+      setMarketFeed(res.items.map(toMarketEvent));
+      if (res.feedSource !== 'live') {
+        setNewsError(
+          res.feedSource === 'fallback_no_api_key'
+            ? 'Showing demo headlines (NEWS_API_KEY not set on server).'
+            : 'Showing demo headlines (NewsAPI error or rate limit).',
+        );
+      }
       setNewsUpdated(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
     } catch (e) {
       if (e instanceof ApiError) {

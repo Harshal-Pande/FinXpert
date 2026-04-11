@@ -13,7 +13,10 @@ export const envConfig = () => ({
     alphaVantageKey: process.env.ALPHA_VANTAGE_API_KEY,
     binanceBaseUrl: process.env.BINANCE_API_URL ?? 'https://api.binance.com',
     newsApiKey: process.env.NEWS_API_KEY,
-    newsMarketQuery: process.env.NEWS_MARKET_QUERY ?? 'Indian stock market',
+    /** NewsAPI `q` search string (not the API key). Default: NIFTY / Sensex / Indian market. */
+    newsMarketQuery:
+      process.env.NEWS_MARKET_QUERY ??
+      '(NIFTY OR Sensex OR BSE OR NSE) AND ("stock market" OR equities OR RBI)',
     mfapiBaseUrl: process.env.MFAPI_BASE_URL ?? 'https://api.mfapi.in',
     /** When true (default), Nifty/Sensex/gold use Yahoo Finance chart API (no key). Set false to use demo numbers only. */
     useYahooIndices:

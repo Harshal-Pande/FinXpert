@@ -26,6 +26,8 @@ interface CryptoPrice {
   price: number;
 }
 
+export type NewsArticleSentiment = 'Positive' | 'Negative' | 'Neutral';
+
 export interface NewsArticle {
   title: string;
   description: string;
@@ -33,6 +35,21 @@ export interface NewsArticle {
   source: string;
   publishedAt: string;
   urlToImage?: string;
+  /** Present on curated fallback rows for UI / testing. */
+  sentiment?: NewsArticleSentiment;
+}
+
+/** How the current `articles` payload was produced (for client messaging). */
+export type NewsFetchProvider =
+  | 'newsapi'
+  | 'fallback_no_key'
+  | 'fallback_error'
+  | 'empty_live';
+
+export interface NewsFetchResult {
+  query: string;
+  articles: NewsArticle[];
+  provider: NewsFetchProvider;
 }
 
 /**
@@ -56,22 +73,41 @@ export class MarketDataService {
     this.binanceBaseUrl = this.config.get<string>('externalApis.binanceBaseUrl') ?? 'https://api.binance.com';
     this.newsApiKey = this.config.get<string>('externalApis.newsApiKey')?.trim();
     this.useYahooIndices = this.config.get<boolean>('externalApis.useYahooIndices') !== false;
-    const rawQuery =
-      this.config.get<string>('externalApis.newsMarketQuery') ?? 'Indian stock market';
+    const defaultFinanceQuery =
+      '(NIFTY OR Sensex OR BSE OR NSE) AND ("stock market" OR equities OR RBI)';
+    const rawQuery = this.config.get<string>('externalApis.newsMarketQuery') ?? defaultFinanceQuery;
     const q = rawQuery.trim();
     // NEWS_MARKET_QUERY must be a search phrase; if someone pasted a second API key, ignore it.
     if (/^[a-f0-9]{24,}$/i.test(q)) {
       this.logger.warn(
-        'NEWS_MARKET_QUERY looks like an API key, not a search query. Using "Indian stock market". Put your NewsAPI key only in NEWS_API_KEY.',
+        'NEWS_MARKET_QUERY looks like an API key, not a search query. Using default finance keywords. Put your NewsAPI key only in NEWS_API_KEY.',
       );
-      this.newsMarketQuery = 'Indian stock market';
+      this.newsMarketQuery = defaultFinanceQuery;
     } else {
-      this.newsMarketQuery = q || 'Indian stock market';
+      this.newsMarketQuery = q || defaultFinanceQuery;
     }
   }
 
   getDefaultNewsQuery(): string {
     return this.newsMarketQuery;
+  }
+
+  /**
+   * Strip accidental API-key-like tokens from the NewsAPI `q` parameter so the key is never sent as search text.
+   */
+  private sanitizeNewsSearchQuery(q: string): string {
+    let s = (q ?? '').trim();
+    if (!s) return this.newsMarketQuery;
+    s = s.replace(/\b[a-f0-9]{24,}\b/gi, ' ').replace(/\s+/g, ' ').trim();
+    return s.length >= 3 ? s : this.newsMarketQuery;
+  }
+
+  private buildNewsEverythingUrl(searchQuery: string, pageSize: number): string {
+    const params = new URLSearchParams();
+    params.set('q', searchQuery);
+    params.set('sortBy', 'publishedAt');
+    params.set('pageSize', String(Math.min(100, Math.max(1, pageSize))));
+    return `https://newsapi.org/v2/everything?${params.toString()}`;
   }
 
   /**
@@ -241,15 +277,26 @@ export class MarketDataService {
   async fetchFinancialNews(
     query = 'finance',
     pageSize = 10,
-  ): Promise<{ query: string; articles: NewsArticle[] }> {
+  ): Promise<NewsFetchResult> {
+    const logicalQuery = this.sanitizeNewsSearchQuery(query);
+
     if (!this.newsApiKey) {
       this.logger.warn('NEWS_API_KEY not set, returning mock news');
-      return { query, articles: this.getFallbackNewsArticles() };
+      return {
+        query: logicalQuery,
+        articles: this.getFallbackNewsArticles(),
+        provider: 'fallback_no_key',
+      };
     }
 
     try {
-      const url = `https://newsapi.org/v2/everything?q=${encodeURIComponent(query)}&sortBy=publishedAt&pageSize=${pageSize}&apiKey=${this.newsApiKey}`;
-      const res = await fetch(url);
+      const url = this.buildNewsEverythingUrl(logicalQuery, pageSize);
+      const res = await fetch(url, {
+        headers: {
+          Accept: 'application/json',
+          'X-Api-Key': this.newsApiKey,
+        },
+      });
       const rawText = await res.text();
       let json: Record<string, unknown>;
       try {
@@ -258,21 +305,33 @@ export class MarketDataService {
         this.logger.warn(
           `NewsAPI: non-JSON response (HTTP ${res.status}) bodyPrefix=${rawText.slice(0, 200)}`,
         );
-        return { query, articles: this.getFallbackNewsArticles() };
+        return {
+          query: logicalQuery,
+          articles: this.getFallbackNewsArticles(),
+          provider: 'fallback_error',
+        };
       }
 
       if (!res.ok) {
         this.logger.warn(
           `NewsAPI HTTP ${res.status}: ${JSON.stringify({ status: json.status, code: json.code, message: json.message }).slice(0, 500)}`,
         );
-        return { query, articles: this.getFallbackNewsArticles() };
+        return {
+          query: logicalQuery,
+          articles: this.getFallbackNewsArticles(),
+          provider: 'fallback_error',
+        };
       }
 
       if (json.status === 'error') {
         this.logger.warn(
           `NewsAPI provider error: ${JSON.stringify({ code: json.code, message: json.message })}`,
         );
-        return { query, articles: this.getFallbackNewsArticles() };
+        return {
+          query: logicalQuery,
+          articles: this.getFallbackNewsArticles(),
+          provider: 'fallback_error',
+        };
       }
 
       const rawArticles = Array.isArray(json.articles) ? json.articles : [];
@@ -287,16 +346,20 @@ export class MarketDataService {
 
       if (articles.length === 0) {
         this.logger.warn(
-          `NewsAPI returned 0 articles (query="${query}", pageSize=${pageSize}). totalResults=${json.totalResults ?? 'n/a'}`,
+          `NewsAPI returned 0 articles (q="${logicalQuery}", pageSize=${pageSize}). totalResults=${json.totalResults ?? 'n/a'}`,
         );
-        return { query, articles: this.getFallbackNewsArticles() };
+        return { query: logicalQuery, articles: [], provider: 'empty_live' };
       }
 
-      this.logger.log(`NewsAPI OK: ${articles.length} articles for query="${query}"`);
-      return { query, articles };
+      this.logger.log(`NewsAPI OK: ${articles.length} articles for q="${logicalQuery}"`);
+      return { query: logicalQuery, articles, provider: 'newsapi' };
     } catch (error) {
       this.logger.error('NewsAPI fetch failed:', error);
-      return { query, articles: this.getFallbackNewsArticles() };
+      return {
+        query: logicalQuery,
+        articles: this.getFallbackNewsArticles(),
+        provider: 'fallback_error',
+      };
     }
   }
 
@@ -430,22 +493,54 @@ export class MarketDataService {
     const now = Date.now();
     return [
       {
-        title: 'Sensex rises 300 points amid positive global cues',
+        title: 'Nifty surges 1.2% as Sensex hits record high on FII buying',
         description:
-          'Indian stock markets opened higher on Monday, tracking gains in Asian markets.',
-        url: 'https://example.com/news/1',
+          'Benchmark indices extended gains for a third session as global risk appetite improved. Sentiment: Positive (demo).',
+        url: 'https://example.com/news/nifty-rally',
         source: 'Economic Times',
         publishedAt: new Date(now).toISOString(),
         urlToImage: undefined,
+        sentiment: 'Positive',
       },
       {
-        title: 'RBI holds interest rates steady, signals cautious optimism',
+        title: 'Global markets slide on growth fears; volatility spikes',
         description:
-          'The Reserve Bank of India kept the repo rate unchanged at 6.5%.',
-        url: 'https://example.com/news/2',
+          'Major indices fell after weak manufacturing data. Sentiment: Negative (demo).',
+        url: 'https://example.com/news/global-slide',
+        source: 'Reuters',
+        publishedAt: new Date(now - 1800000).toISOString(),
+        urlToImage: undefined,
+        sentiment: 'Negative',
+      },
+      {
+        title: 'RBI holds repo rate steady; analysts expect range-bound trade',
+        description:
+          'Policy stance seen as balanced for inflation and growth. Sentiment: Neutral (demo).',
+        url: 'https://example.com/news/rbi-hold',
         source: 'Mint',
         publishedAt: new Date(now - 3600000).toISOString(),
         urlToImage: undefined,
+        sentiment: 'Neutral',
+      },
+      {
+        title: 'Banking sector advances on strong Q4 earnings outlook',
+        description:
+          'Large-cap lenders led gains after upbeat guidance. Sentiment: Positive (demo).',
+        url: 'https://example.com/news/banks-up',
+        source: 'Business Standard',
+        publishedAt: new Date(now - 5400000).toISOString(),
+        urlToImage: undefined,
+        sentiment: 'Positive',
+      },
+      {
+        title: 'Crude steadies near range as OPEC+ output plans remain unchanged',
+        description:
+          'Energy markets await fresh catalysts; price action muted. Sentiment: Neutral (demo).',
+        url: 'https://example.com/news/oil-flat',
+        source: 'Livemint',
+        publishedAt: new Date(now - 7200000).toISOString(),
+        urlToImage: undefined,
+        sentiment: 'Neutral',
       },
     ];
   }

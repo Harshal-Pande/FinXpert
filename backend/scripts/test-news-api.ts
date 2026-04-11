@@ -43,7 +43,8 @@ function loadEnvFromFiles(): Record<string, string> {
 
 const env = loadEnvFromFiles();
 
-const DEFAULT_QUERY = 'Indian stock market';
+const DEFAULT_QUERY =
+  '(NIFTY OR Sensex OR BSE OR NSE) AND ("stock market" OR equities OR RBI)';
 
 function maskKey(key: string): string {
   if (key.length <= 8) return '***';
@@ -119,9 +120,13 @@ async function callNewsEverything(apiKey: string, query: string, pageSize: numbe
   url.searchParams.set('q', query);
   url.searchParams.set('sortBy', 'publishedAt');
   url.searchParams.set('pageSize', String(pageSize));
-  url.searchParams.set('apiKey', apiKey);
 
-  const res = await fetch(url);
+  const res = await fetch(url.toString(), {
+    headers: {
+      Accept: 'application/json',
+      'X-Api-Key': apiKey,
+    },
+  });
   const body = (await res.json()) as NewsApiErrorBody | NewsApiOkBody;
 
   return { httpStatus: res.status, body };

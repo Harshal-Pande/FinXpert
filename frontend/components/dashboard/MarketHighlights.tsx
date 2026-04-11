@@ -17,15 +17,19 @@ export default function MarketHighlights() {
     setLoading(true);
     setHighlightError(null);
     try {
-      const data = await getMarketNewsFeed(8);
-      if (data.length === 0) {
+      const res = await getMarketNewsFeed(8, 'All');
+      if (res.items.length === 0) {
         setNews([]);
         setHighlightError(
-          'News feed empty — check NEXT_PUBLIC_API_URL and server NewsAPI logs.',
+          res.feedSource === 'fallback_no_api_key'
+            ? 'News: demo mode — NEWS_API_KEY missing on server.'
+            : res.feedSource === 'empty_live'
+              ? `No headlines for "${res.queryUsed}".`
+              : 'News feed empty — check NEXT_PUBLIC_API_URL and server logs.',
         );
         return;
       }
-      setNews(data.map(toMarketEvent).slice(0, 3));
+      setNews(res.items.map(toMarketEvent).slice(0, 3));
       setLastUpdated(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
     } catch (e) {
       setNews([]);

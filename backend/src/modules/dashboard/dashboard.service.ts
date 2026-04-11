@@ -450,7 +450,7 @@ export class DashboardService {
           status: { not: 'done' },
         },
       }),
-      this.newsService.getMarketNews(10),
+      this.newsService.getMarketNews(10).then((r) => r.items),
       this.compliance.getUpcoming(),
       this.marketData.getMarketStats(),
     ]);

@@ -1,41 +1,103 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { Clock, Filter, Globe, Home, Layers, Zap } from 'lucide-react';
-import { getMarketNewsFeed, toMarketEvent } from '@/lib/api/news';
+import { useCallback, useEffect, useState } from 'react';
+import { Clock, Globe, Home, Layers, Zap } from 'lucide-react';
+import {
+  getMarketNewsFeed,
+  toMarketEvent,
+  type MarketNewsFeedResponse,
+  type NewsFeedScope,
+} from '@/lib/api/news';
 import type { MarketEvent } from '@/lib/api/market';
 import { ApiError } from '@/lib/api/client';
 import Breadcrumb from '@/components/layout/Breadcrumb';
 
-type CategoryFilter = 'All' | 'Global' | 'Domestic' | 'Sector-wise';
+type CategoryFilter = NewsFeedScope;
+
+function sentimentBadgeClass(s: MarketEvent['sentiment']): string {
+  if (s === 'Positive') return 'bg-emerald-50 text-emerald-800 border-emerald-200';
+  if (s === 'Negative') return 'bg-rose-50 text-rose-800 border-rose-200';
+  return 'bg-slate-50 text-slate-600 border-slate-200';
+}
+
+function buildEmptyOrBanner(res: MarketNewsFeedResponse, hasItems: boolean): {
+  feedEmptyMessage: string | null;
+  demoBanner: string | null;
+} {
+  if (hasItems) {
+    if (res.feedSource === 'fallback_no_api_key') {
+      return {
+        feedEmptyMessage: null,
+        demoBanner:
+          'Demo feed: NEWS_API_KEY is not set on the API server. Headlines include Positive / Negative / Neutral sentiment for UI testing.',
+      };
+    }
+    if (res.feedSource === 'fallback_error') {
+      return {
+        feedEmptyMessage: null,
+        demoBanner:
+          'Demo feed: NewsAPI returned an error or rate limit. Check Render logs; use Retry after a few minutes.',
+      };
+    }
+    return { feedEmptyMessage: null, demoBanner: null };
+  }
+
+  if (res.feedSource === 'empty_live') {
+    return {
+      feedEmptyMessage: `No articles matched this search (zero results). Query sent: "${res.queryUsed}". Try another scope or Retry — NewsAPI free tier often rate-limits.`,
+      demoBanner: null,
+    };
+  }
+  if (res.feedSource === 'fallback_no_api_key') {
+    return {
+      feedEmptyMessage:
+        'NEWS_API_KEY is not set on the API server — the feed cannot load live headlines. Add NEWS_API_KEY on Render and redeploy.',
+      demoBanner: null,
+    };
+  }
+  if (res.feedSource === 'fallback_error') {
+    return {
+      feedEmptyMessage:
+        'News provider error — no demo articles returned. Check Render logs for NewsAPI HTTP or auth errors, then Retry.',
+      demoBanner: null,
+    };
+  }
+  return {
+    feedEmptyMessage: 'News feed returned no items.',
+    demoBanner: null,
+  };
+}
 
 export default function TrendsPage() {
   const [news, setNews] = useState<MarketEvent[]>([]);
-  const [filteredNews, setFilteredNews] = useState<MarketEvent[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<CategoryFilter>('All');
   const [lastUpdated, setLastUpdated] = useState<string>('');
 
-  /** Network / HTTP errors (wrong URL, CORS, 404 route, server down). */
   const [feedError, setFeedError] = useState<string | null>(null);
-  /** 200 OK but empty or non-array payload — provider/key/rate-limit. */
   const [feedEmptyMessage, setFeedEmptyMessage] = useState<string | null>(null);
+  const [demoBanner, setDemoBanner] = useState<string | null>(null);
+  const [queryUsed, setQueryUsed] = useState<string>('');
 
-  const fetchNews = async () => {
+  const loadFeed = useCallback(async (scope: CategoryFilter) => {
     setLoading(true);
     setFeedError(null);
     setFeedEmptyMessage(null);
+    setDemoBanner(null);
     try {
-      const data = await getMarketNewsFeed(20);
-      if (data.length === 0) {
-        setNews([]);
-        setFeedEmptyMessage(
-          'News feed returned no articles. The news server may be rate-limited or the API key may need attention — check Render logs for NewsAPI messages.',
-        );
-        return;
+      const res = await getMarketNewsFeed(20, scope);
+      setQueryUsed(res.queryUsed);
+      const mapped = res.items.map(toMarketEvent);
+      setNews(mapped);
+
+      const hasItems = mapped.length > 0;
+      const { feedEmptyMessage: emptyMsg, demoBanner: banner } = buildEmptyOrBanner(res, hasItems);
+      setFeedEmptyMessage(emptyMsg);
+      setDemoBanner(banner);
+
+      if (hasItems) {
+        setLastUpdated(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
       }
-      setNews(data.map(toMarketEvent));
-      setLastUpdated(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
     } catch (e) {
       setNews([]);
       if (e instanceof ApiError) {
@@ -50,45 +112,43 @@ export default function TrendsPage() {
     } finally {
       setLoading(false);
     }
-  };
-
-  useEffect(() => {
-    fetchNews();
-    const interval = setInterval(fetchNews, 300000); // 5 minutes
-    return () => clearInterval(interval);
   }, []);
 
   useEffect(() => {
-    if (filter === 'All') {
-      setFilteredNews(news);
-    } else {
-      setFilteredNews(news.filter((item) => item.category === filter));
-    }
-  }, [filter, news]);
+    void loadFeed(filter);
+    const interval = setInterval(() => void loadFeed(filter), 300_000);
+    return () => clearInterval(interval);
+  }, [filter, loadFeed]);
 
   const getImpactColor = (impact: string) => {
     switch (impact) {
-      case 'High': return 'text-red-600 bg-red-50 border-red-100';
-      case 'Med': return 'text-amber-600 bg-amber-50 border-amber-100';
-      case 'Low': return 'text-blue-600 bg-blue-50 border-blue-100';
-      default: return 'text-slate-600 bg-slate-50 border-slate-100';
+      case 'High':
+        return 'text-red-600 bg-red-50 border-red-100';
+      case 'Med':
+        return 'text-amber-600 bg-amber-50 border-amber-100';
+      case 'Low':
+        return 'text-blue-600 bg-blue-50 border-blue-100';
+      default:
+        return 'text-slate-600 bg-slate-50 border-slate-100';
     }
   };
 
   const getCategoryIcon = (category: string) => {
     switch (category) {
-      case 'Global': return <Globe className="h-4 w-4" />;
-      case 'Domestic': return <Home className="h-4 w-4" />;
-      case 'Sector-wise': return <Layers className="h-4 w-4" />;
-      default: return null;
+      case 'Global':
+        return <Globe className="h-4 w-4" />;
+      case 'Domestic':
+        return <Home className="h-4 w-4" />;
+      case 'Sector-wise':
+        return <Layers className="h-4 w-4" />;
+      default:
+        return null;
     }
   };
 
   return (
     <div className="min-h-screen bg-slate-50 p-8 flex justify-center font-sans text-slate-800">
       <div className="w-full max-w-5xl border-2 border-slate-800 rounded-3xl p-8 relative bg-white">
-        
-        {/* Title over border trick */}
         <div className="absolute -top-4 left-10 bg-white px-2 text-xl font-medium tracking-wide">
           Market Trends & News
         </div>
@@ -96,11 +156,20 @@ export default function TrendsPage() {
         <div className="mb-8">
           <Breadcrumb />
           <p className="mt-2 text-sm text-slate-500">
-            Live feed powered by the FinXpert news API. Refreshes every 5 minutes.
+            Live feed from NewsAPI via FinXpert. Each tab sends a different search query to the backend. Refreshes every 5
+            minutes.
           </p>
+          {queryUsed ? (
+            <p className="mt-1 text-xs font-mono text-slate-500 break-all">Last query: {queryUsed}</p>
+          ) : null}
           {feedError && (
             <p className="mt-3 text-sm text-amber-800 bg-amber-50 border border-amber-100 rounded-xl px-3 py-2">
               {feedError}
+            </p>
+          )}
+          {demoBanner && !feedError && (
+            <p className="mt-3 text-sm text-indigo-900 bg-indigo-50 border border-indigo-100 rounded-xl px-3 py-2">
+              {demoBanner}
             </p>
           )}
           {feedEmptyMessage && !feedError && (
@@ -110,38 +179,45 @@ export default function TrendsPage() {
           )}
         </div>
 
-        {/* Filters and Refresh Info */}
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-8">
           <div className="flex flex-wrap items-center gap-2">
             {(['All', 'Global', 'Domestic', 'Sector-wise'] as CategoryFilter[]).map((cat) => (
               <button
                 key={cat}
+                type="button"
                 onClick={() => setFilter(cat)}
                 className={`px-4 py-2 rounded-xl text-sm font-semibold transition-all ${
-                  filter === cat 
-                    ? 'bg-slate-800 text-white' 
-                    : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                  filter === cat ? 'bg-slate-800 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
                 }`}
               >
                 {cat}
               </button>
             ))}
           </div>
-          <div className="flex items-center gap-2 text-xs text-slate-400">
-            <Clock className="h-3 w-3" />
-            Last updated: {lastUpdated}
+          <div className="flex flex-wrap items-center gap-3">
+            <button
+              type="button"
+              disabled={loading}
+              onClick={() => void loadFeed(filter)}
+              className="rounded-xl bg-indigo-600 px-4 py-2 text-xs font-bold text-white hover:bg-indigo-700 disabled:opacity-50 transition-all"
+            >
+              {loading ? 'Loading…' : 'Retry'}
+            </button>
+            <div className="flex items-center gap-2 text-xs text-slate-400">
+              <Clock className="h-3 w-3" />
+              Last updated: {lastUpdated || '—'}
+            </div>
           </div>
         </div>
 
-        {/* News Feed */}
         <div className="space-y-6">
           {loading ? (
             <div className="flex flex-col items-center justify-center py-20 gap-4">
               <div className="h-10 w-10 animate-spin rounded-full border-2 border-slate-800 border-t-transparent" />
               <p className="text-sm font-medium text-slate-400 font-mono italic">FETCHING RECENT EVENTS...</p>
             </div>
-          ) : filteredNews.length > 0 ? (
-            filteredNews.map((event, index) => (
+          ) : news.length > 0 ? (
+            news.map((event, index) => (
               <a
                 key={`${event.url}-${index}`}
                 href={event.url}
@@ -160,10 +236,19 @@ export default function TrendsPage() {
                   ) : null}
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-3 mb-2 flex-wrap">
-                      <span className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold uppercase border-2 ${getImpactColor(event.impact)}`}>
+                      <span
+                        className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold uppercase border-2 ${getImpactColor(event.impact)}`}
+                      >
                         <Zap className="h-3 w-3" />
                         {event.impact} IMPACT
                       </span>
+                      {event.sentiment ? (
+                        <span
+                          className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold uppercase border ${sentimentBadgeClass(event.sentiment)}`}
+                        >
+                          {event.sentiment}
+                        </span>
+                      ) : null}
                       <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-slate-100 text-slate-600 text-[10px] font-bold uppercase">
                         {getCategoryIcon(event.category)}
                         {event.category}
@@ -179,32 +264,52 @@ export default function TrendsPage() {
                     <h3 className="text-lg font-bold text-slate-800 group-hover:text-indigo-600 transition-colors uppercase tracking-tight">
                       {event.title}
                     </h3>
-                    {event.source ? (
-                      <p className="mt-1 text-xs font-semibold text-slate-500">{event.source}</p>
-                    ) : null}
-                    <p className="mt-2 text-sm text-slate-600 leading-relaxed font-medium">
-                      {event.summary}
-                    </p>
+                    {event.source ? <p className="mt-1 text-xs font-semibold text-slate-500">{event.source}</p> : null}
+                    <p className="mt-2 text-sm text-slate-600 leading-relaxed font-medium">{event.summary}</p>
                   </div>
                 </div>
               </a>
             ))
-          ) : news.length > 0 ? (
-            <div className="text-center py-20 border-2 border-dashed border-slate-200 rounded-3xl">
-              <p className="text-slate-400 font-medium italic">No news events found for this category.</p>
+          ) : feedError ? (
+            <div className="text-center py-20 border-2 border-dashed border-amber-100 rounded-3xl bg-amber-50/30 px-4 space-y-4">
+              <p className="text-slate-800 font-medium">{feedError}</p>
+              <button
+                type="button"
+                disabled={loading}
+                onClick={() => void loadFeed(filter)}
+                className="inline-flex rounded-xl bg-indigo-600 px-6 py-2 text-sm font-bold text-white hover:bg-indigo-700 disabled:opacity-50 transition-all"
+              >
+                Retry
+              </button>
             </div>
-          ) : feedEmptyMessage ? (
-            <div className="text-center py-20 border-2 border-dashed border-slate-200 rounded-3xl">
-              <p className="text-slate-500 font-medium">{feedEmptyMessage}</p>
+          ) : feedEmptyMessage || demoBanner ? (
+            <div className="text-center py-16 border-2 border-dashed border-slate-200 rounded-3xl space-y-4 px-4">
+              {feedEmptyMessage ? <p className="text-slate-600 font-medium">{feedEmptyMessage}</p> : null}
+              {demoBanner ? <p className="text-sm text-indigo-800">{demoBanner}</p> : null}
+              <button
+                type="button"
+                disabled={loading}
+                onClick={() => void loadFeed(filter)}
+                className="inline-flex rounded-xl bg-indigo-600 px-6 py-2 text-sm font-bold text-white hover:bg-indigo-700 disabled:opacity-50 transition-all"
+              >
+                Retry fetch
+              </button>
             </div>
           ) : (
             <div className="text-center py-20 border-2 border-dashed border-slate-200 rounded-3xl">
               <p className="text-slate-500 font-medium">Unable to reach news server.</p>
+              <button
+                type="button"
+                disabled={loading}
+                onClick={() => void loadFeed(filter)}
+                className="mt-4 inline-flex rounded-xl bg-indigo-600 px-6 py-2 text-sm font-bold text-white hover:bg-indigo-700 disabled:opacity-50 transition-all"
+              >
+                Retry
+              </button>
             </div>
           )}
         </div>
 
-        {/* Advisor Confidence Footer */}
         <div className="mt-12 text-center">
           <p className="text-[10px] font-bold text-slate-300 uppercase tracking-widest">
             FINXPERT MARKET INTELLIGENCE • REAL-TIME FEED • {lastUpdated}
