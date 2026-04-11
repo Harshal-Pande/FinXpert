@@ -472,26 +472,8 @@
     "emergency_fund": 500000,
     "insurance_coverage": 10000000,
     "investments": [
-      { "investment_type": "Stock", "instrument_name": "Nykaa", "quantity": 400, "buy_rate": 165.0, "bought_at": "2026-01-05T10:00:00Z" },
-      { "investment_type": "Stock", "instrument_name": "Zomato", "quantity": 800, "buy_rate": 185.0, "bought_at": "2026-01-12T10:00:00Z" },
-      { "investment_type": "Stock", "instrument_name": "Trent Ltd", "quantity": 10, "buy_rate": 4100.0, "bought_at": "2026-01-20T10:00:00Z" },
-      { "investment_type": "Stock", "instrument_name": "Varun Beverages", "quantity": 40, "buy_rate": 1420.0, "bought_at": "2026-02-01T10:00:00Z" },
-      { "investment_type": "Stock", "instrument_name": "Titan Ltd", "quantity": 15, "buy_rate": 3480.0, "bought_at": "2026-02-10T10:00:00Z" },
-      { "investment_type": "Mutual_Fund", "instrument_name": "Quant Active Fund", "quantity": 3000, "buy_rate": 615.0, "bought_at": "2026-01-10T10:00:00Z" },
-      { "investment_type": "Mutual_Fund", "instrument_name": "PPFAS Flexi Cap", "quantity": 5000, "buy_rate": 68.0, "bought_at": "2026-01-25T10:00:00Z" },
-      { "investment_type": "Mutual_Fund", "instrument_name": "Motilal Midcap", "quantity": 2500, "buy_rate": 84.0, "bought_at": "2026-02-05T10:00:00Z" },
-      { "investment_type": "Mutual_Fund", "instrument_name": "Axis Small Cap", "quantity": 1500, "buy_rate": 96.0, "bought_at": "2026-02-15T10:00:00Z" },
-      { "investment_type": "Mutual_Fund", "instrument_name": "Mirae Asset AI", "quantity": 2000, "buy_rate": 36.0, "bought_at": "2026-03-01T10:00:00Z" },
-      { "investment_type": "Crypto", "instrument_name": "Bitcoin", "quantity": 0.02, "buy_rate": 5550000.0, "bought_at": "2026-02-20T10:00:00Z" },
-      { "investment_type": "Crypto", "instrument_name": "Ethereum", "quantity": 1.0, "buy_rate": 312000.0, "bought_at": "2026-02-28T10:00:00Z" },
-      { "investment_type": "Crypto", "instrument_name": "Solana", "quantity": 15, "buy_rate": 14200.0, "bought_at": "2026-03-10T10:00:00Z" },
-      { "investment_type": "Debt", "instrument_name": "Public Provident Fund", "quantity": 1, "buy_rate": 150000.0, "bought_at": "2026-01-01T10:00:00Z" },
-      { "investment_type": "Debt", "instrument_name": "Gold Bond Series 2", "quantity": 15, "buy_rate": 6550.0, "bought_at": "2026-01-15T10:00:00Z" },
-      { "investment_type": "Debt", "instrument_name": "Corporate FD Bajaj", "quantity": 1, "buy_rate": 100000.0, "bought_at": "2026-02-10T10:00:00Z" },
-      { "investment_type": "Debt", "instrument_name": "NHAI Bonds", "quantity": 50, "buy_rate": 1180.0, "bought_at": "2026-02-20T10:00:00Z" },
-      { "investment_type": "Stock", "instrument_name": "Airtel", "quantity": 100, "buy_rate": 1210.0, "bought_at": "2026-03-12T10:00:00Z" },
-      { "investment_type": "Stock", "instrument_name": "DLF Ltd", "quantity": 50, "buy_rate": 890.0, "bought_at": "2026-03-15T10:00:00Z" },
-      { "investment_type": "Mutual_Fund", "instrument_name": "Nippon Small Cap", "quantity": 1000, "buy_rate": 145.0, "bought_at": "2026-03-18T10:00:00Z" }
-    ]
+      ]
+
+    
   }
 ]
