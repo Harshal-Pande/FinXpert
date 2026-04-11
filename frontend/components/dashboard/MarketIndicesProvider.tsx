@@ -18,6 +18,7 @@ const REFRESH_MS = 50_000;
 type Ctx = {
   indices: MarketPulse[];
   loading: boolean;
+  isAiPowered: boolean;
   error: string | null;
   refresh: () => Promise<void>;
 };
@@ -27,13 +28,15 @@ const MarketIndicesContext = createContext<Ctx | null>(null);
 export function MarketIndicesProvider({ children }: { children: ReactNode }) {
   const [indices, setIndices] = useState<MarketPulse[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isAiPowered, setIsAiPowered] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const refresh = useCallback(async () => {
     setError(null);
     try {
       const data = await fetchMarketIndices();
-      setIndices([...data]);
+      setIndices([...data.indices]);
+      setIsAiPowered(data.isAiPowered);
     } catch (e) {
       const msg =
         e instanceof ApiError
@@ -52,8 +55,8 @@ export function MarketIndicesProvider({ children }: { children: ReactNode }) {
   }, [refresh]);
 
   const value = useMemo(
-    () => ({ indices, loading, error, refresh }),
-    [indices, loading, error, refresh],
+    () => ({ indices, loading, isAiPowered, error, refresh }),
+    [indices, loading, isAiPowered, error, refresh],
   );
 
   return (

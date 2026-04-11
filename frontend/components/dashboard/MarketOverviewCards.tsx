@@ -14,7 +14,7 @@ function CardSkeleton() {
 }
 
 export default function MarketOverviewCards() {
-  const { indices, loading, error } = useMarketIndices();
+  const { indices, loading, isAiPowered, error } = useMarketIndices();
 
   if (loading && indices.length === 0) {
     return (
@@ -47,9 +47,17 @@ export default function MarketOverviewCards() {
             key={item.name}
             className="rounded-2xl border border-white/20 bg-white/70 backdrop-blur-md shadow-[0_8px_32px_0_rgba(31,38,135,0.07)] p-4 transition-all duration-300 hover:shadow-lg hover:-translate-y-0.5"
           >
-            <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-1">
-              {item.name}
-            </p>
+            <div className="flex items-center justify-between mb-1">
+              <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">
+                {item.name}
+              </p>
+              {isAiPowered && (
+                <div className="flex items-center gap-1 scale-75 origin-right">
+                  <div className="h-1.5 w-1.5 rounded-full bg-indigo-500 animate-pulse" />
+                  <span className="text-[8px] font-black uppercase text-indigo-400">AI Live</span>
+                </div>
+              )}
+            </div>
             <p className="text-lg font-black text-slate-900 tabular-nums mb-1">{item.value}</p>
             <div className="flex items-center gap-1.5">
               {item.trend === 'up' ? (

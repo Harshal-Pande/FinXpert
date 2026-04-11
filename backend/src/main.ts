@@ -44,26 +44,43 @@ async function bootstrap() {
   const app = await NestFactory.create(AppModule);
   const config = app.get(ConfigService);
 
-  // 1. DYNAMIC CORS CONFIGURATION
-  // This allows local dev and your production Vercel deployment
-  const fromEnvList =
-    process.env.CORS_ORIGINS?.split(',')
-      .map((o) => o.trim())
-      .filter(Boolean) ?? [];
-
-  const allowedOrigins = [
-    'http://localhost:3000',
-    'http://localhost:3010',
-    'http://localhost:3020',
-    'http://127.0.0.1:3020',
-    'http://127.0.0.1:3000',
-    'https://fin-xpert-eight.vercel.app',
-    ...fromEnvList,
-    config.get<string>('FRONTEND_URL'),
-  ].filter((origin): origin is string => Boolean(origin));
+  // 1. CORS — local dev, *.vercel.app, known prod URLs, CORS_ORIGINS, FRONTEND_URL
+  const extraFromEnv = (process.env.CORS_ORIGINS ?? '')
+    .split(',')
+    .map((s) => s.trim())
+    .filter(Boolean);
+  const explicitAllow = new Set(
+    [
+      'http://localhost:3000',
+      'http://localhost:3010',
+      'http://localhost:3020',
+      'http://127.0.0.1:3020',
+      'http://127.0.0.1:3000',
+      'https://fin-xpert-eight.vercel.app',
+      'https://fin-xpert-nu.vercel.app',
+      config.get<string>('FRONTEND_URL'),
+      ...extraFromEnv,
+    ].filter((o): o is string => Boolean(o)),
+  );
 
   app.enableCors({
-    origin: allowedOrigins,
+    origin: (origin, cb) => {
+      if (!origin) {
+        return cb(null, true);
+      }
+      if (explicitAllow.has(origin)) {
+        return cb(null, true);
+      }
+      try {
+        const host = new URL(origin).hostname;
+        if (host === 'localhost' || host.endsWith('.vercel.app')) {
+          return cb(null, true);
+        }
+      } catch {
+        // ignore bad origin
+      }
+      return cb(null, false);
+    },
     methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
     credentials: true,
     allowedHeaders: 'Content-Type, Accept, Authorization',
@@ -117,8 +134,14 @@ async function bootstrap() {
     throw err;
   }
   const bound = listenHost ?? '(default, IPv4+IPv6 where supported)';
-  console.log(`🚀 FinXpert API is live on http://127.0.0.1:${port}/api  (bound ${bound})`);
-  console.log(`✅ Allowed Origins: ${allowedOrigins.join(', ')}`);
+  const renderPublic = process.env.RENDER_EXTERNAL_URL?.replace(/\/$/, '');
+  const apiHint = renderPublic
+    ? `${renderPublic}/api`
+    : `http://127.0.0.1:${port}/api`;
+  console.log(`🚀 FinXpert API — ${apiHint}  (port ${port}, ${bound})`);
+  console.log(
+    `✅ CORS: explicit [${[...explicitAllow].join(', ')}] + *.vercel.app + localhost`,
+  );
 }
 
 bootstrap().catch((err) => {

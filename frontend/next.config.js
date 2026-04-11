@@ -1,11 +1,16 @@
 /** @type {import('next').NextConfig} */
+const defaultBackend =
+  process.env.BACKEND_ORIGIN?.replace(/\/$/, '') ||
+  process.env.NEXT_PUBLIC_API_URL?.replace(/\/api\/?$/, '').replace(/\/$/, '') ||
+  'https://finxpert-gl51.onrender.com';
+
 const nextConfig = {
   reactStrictMode: true,
   async rewrites() {
     return [
       {
         source: '/api/:path*',
-        destination: `${process.env.BACKEND_ORIGIN || 'http://127.0.0.1:3001'}/api/:path*`,
+        destination: `${defaultBackend}/api/:path*`,
       },
     ];
   },

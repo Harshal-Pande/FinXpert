@@ -1,6 +1,7 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, Optional } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { GoogleGenerativeAI } from '@google/generative-ai';
+import { AiInsightService } from './ai-insight.service';
 
 /** Troy ounces per gram (for XAU USD/oz × USDINR → ₹/g). */
 const GRAMS_PER_TROY_OZ = 31.1034768;
@@ -76,9 +77,14 @@ export class MarketDataService {
   private readonly yahooCache = new Map<string, { at: number; data: YahooQuoteMeta | null }>();
   private static readonly YAHOO_UA = 'Mozilla/5.0 (compatible; FinXpert/1.0; +https://github.com/)';
   private static readonly YAHOO_CHART_TTL_MS = 45_000;
+  private static readonly AI_RATES_TTL_MS = 60_000;
   private readonly genAI: GoogleGenerativeAI | null = null;
+  private aiRatesCache: { at: number; data: any[] | null } = { at: 0, data: null };
 
-  constructor(private readonly config: ConfigService) {
+  constructor(
+    private readonly config: ConfigService,
+    @Optional() private readonly aiInsightService?: AiInsightService,
+  ) {
     this.alphaVantageKey = this.config.get<string>('externalApis.alphaVantageKey');
     this.binanceBaseUrl = this.config.get<string>('externalApis.binanceBaseUrl') ?? 'https://api.binance.com';
     this.newsApiKey = this.config.get<string>('externalApis.newsApiKey')?.trim();
@@ -372,33 +378,103 @@ export class MarketDataService {
   }
 
   /**
-   * Get a combined market statistics snapshot.
+   * Get a combined market statistics snapshot, optionally enhanced by Gemini AI live grounding.
    */
   async getMarketStats() {
+    const now = Date.now();
+    let aiRates = null;
+
+    if (this.aiInsightService) {
+      if (now - this.aiRatesCache.at < MarketDataService.AI_RATES_TTL_MS) {
+        aiRates = this.aiRatesCache.data;
+      } else {
+        try {
+          aiRates = await this.aiInsightService.getLiveMarketRates();
+          this.aiRatesCache = { at: now, data: aiRates };
+        } catch (e) {
+          this.logger.warn('Failed to fetch AI rates, falling back to cache or defaults');
+          aiRates = this.aiRatesCache.data;
+        }
+      }
+    }
+
     const [nifty, sensex, gold, newsData] = await Promise.all([
-      this.getNifty(),
-      this.getSensex(),
-      this.getGold(),
+      this.getSharedNifty(aiRates),
+      this.getSharedSensex(aiRates),
+      this.getSharedGold(aiRates),
       this.fetchFinancialNews(this.newsMarketQuery),
     ]);
+
+    const hasAiRates = aiRates && aiRates.length > 0;
 
     return {
       nifty,
       sensex,
       gold,
+      aiRates: aiRates ?? [],
+      isAiPowered: hasAiRates,
       newsCount: newsData.articles.length,
       topHeadline: newsData.articles[0]?.title ?? 'No news available',
     };
   }
 
+  private getSharedNifty(aiRates: any[] | null) {
+    if (aiRates) {
+      const match = aiRates.find(r => r.symbol.toUpperCase().includes('NIFTY'));
+      if (match) {
+        return { ...match, value: match.price };
+      }
+    }
+    return this.getNifty();
+  }
+
+  private getSharedSensex(aiRates: any[] | null) {
+    if (aiRates) {
+      const match = aiRates.find(r => r.symbol.toUpperCase().includes('SENSEX'));
+      if (match) {
+        return { ...match, value: match.price };
+      }
+    }
+    return this.getSensex();
+  }
+
+  private getSharedGold(aiRates: any[] | null) {
+    if (aiRates) {
+      const match = aiRates.find(r => r.symbol.toLowerCase().includes('gold'));
+      if (match) {
+        return { ...match, value: match.price };
+      }
+    }
+    return this.getGold();
+  }
+
   /** Single round-trip for dashboards (reduces parallel HTTP from browser → API). */
   async getIndices() {
+    const now = Date.now();
+    let aiRates = null;
+
+    if (this.aiInsightService) {
+      if (now - this.aiRatesCache.at < MarketDataService.AI_RATES_TTL_MS) {
+        aiRates = this.aiRatesCache.data;
+      } else {
+        try {
+          aiRates = await this.aiInsightService.getLiveMarketRates();
+          this.aiRatesCache = { at: now, data: aiRates };
+        } catch {
+          aiRates = this.aiRatesCache.data;
+        }
+      }
+    }
+
     const [nifty, sensex, gold] = await Promise.all([
-      this.getNifty(),
-      this.getSensex(),
-      this.getGold(),
+      this.getSharedNifty(aiRates),
+      this.getSharedSensex(aiRates),
+      this.getSharedGold(aiRates),
     ]);
-    return [nifty, sensex, gold] as const;
+    return {
+      indices: [nifty, sensex, gold],
+      isAiPowered: !!(aiRates && aiRates.length > 0),
+    };
   }
 
   async getNifty() {

@@ -1,22 +1,26 @@
 /**
  * HTTP client for the Nest API.
  *
- * Set `NEXT_PUBLIC_API_URL` to your API host. If you omit `/api`, it is appended automatically
- * (e.g. `https://finxpert-gl51.onrender.com` → `https://finxpert-gl51.onrender.com/api`).
- * In development, relative `/api` is avoided: traffic goes to `BACKEND_ORIGIN` (default
- * `http://127.0.0.1:3001`) + `/api` so the browser does not depend on Next rewrites when the API restarts.
+ * Set `NEXT_PUBLIC_API_URL` to your API origin. If you omit `/api`, it is appended so routes like
+ * `/market/indices` resolve to `/api/market/indices`.
+ *
+ * When `NEXT_PUBLIC_API_URL` is missing at build time (common on Vercel Preview), the client falls back to
+ * `DEFAULT_PRODUCTION_API_BASE` instead of loopback.
+ *
+ * In development, traffic goes to `BACKEND_ORIGIN` (default `http://127.0.0.1:3001`) + `/api`.
  */
-function normalizeHttpApiBase(url: string): string {
-  const trimmed = url.replace(/\/$/, '');
-  // Vercel often sets origin only (e.g. https://api.onrender.com). Nest uses global prefix `/api`.
-  if (trimmed.endsWith('/api')) return trimmed;
-  return `${trimmed}/api`;
+function ensureApiSuffix(base: string): string {
+  const u = base.trim().replace(/\/$/, '');
+  if (!/^https?:\/\//i.test(u)) return u;
+  return u.endsWith('/api') ? u : `${u}/api`;
 }
+
+const DEFAULT_PRODUCTION_API_BASE = 'https://finxpert-gl51.onrender.com/api';
 
 function resolveApiBase(): string {
   const fromEnv = process.env.NEXT_PUBLIC_API_URL?.trim();
   if (fromEnv?.startsWith('http://') || fromEnv?.startsWith('https://')) {
-    return normalizeHttpApiBase(fromEnv);
+    return ensureApiSuffix(fromEnv);
   }
   if (process.env.NODE_ENV === 'development') {
     if (typeof window !== 'undefined') {
@@ -30,6 +34,14 @@ function resolveApiBase(): string {
   }
   if (fromEnv?.startsWith('/')) {
     return fromEnv.replace(/\/$/, '');
+  }
+  // Vercel / production build without NEXT_PUBLIC_* (Preview deploys): never use loopback in the browser
+  const defaultOverride = process.env.NEXT_PUBLIC_API_DEFAULT?.trim();
+  const raw = defaultOverride || DEFAULT_PRODUCTION_API_BASE;
+  if (process.env.NODE_ENV === 'production' || process.env.VERCEL) {
+    return ensureApiSuffix(
+      raw.startsWith('http://') || raw.startsWith('https://') ? raw : `https://${raw}`,
+    );
   }
   return 'http://127.0.0.1:3001/api';
 }

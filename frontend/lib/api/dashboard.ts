@@ -34,6 +34,8 @@ export interface DashboardSummary {
   strategicInsights: StrategicInsight[];
   marketPulse: MarketPulse[];
   recentNews: MarketEvent[];
+  isAiPowered?: boolean;
+  aiRates?: any[];
 }
 
 export async function getDashboardSummary(advisorId?: string): Promise<DashboardSummary> {

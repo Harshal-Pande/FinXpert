@@ -40,9 +40,8 @@ export async function getMarketGold(): Promise<MarketPulse> {
   return apiClient<MarketPulse>('/market/gold');
 }
 
-export async function fetchMarketIndices(): Promise<[MarketPulse, MarketPulse, MarketPulse]> {
-  const tuple = await apiClient<[MarketPulse, MarketPulse, MarketPulse]>('/market/indices');
-  return tuple;
+export async function fetchMarketIndices(): Promise<{ indices: MarketPulse[]; isAiPowered: boolean }> {
+  return apiClient<{ indices: MarketPulse[]; isAiPowered: boolean }>('/market/indices');
 }
 
 /** Legacy static feed; prefer getMarketNewsFeed from ./news */

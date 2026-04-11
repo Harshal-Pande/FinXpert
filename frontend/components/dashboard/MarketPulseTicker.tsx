@@ -4,7 +4,7 @@ import { useMarketIndices } from '@/components/dashboard/MarketIndicesProvider';
 import { ArrowDownRight, ArrowUpRight, Minus } from 'lucide-react';
 
 export default function MarketPulseTicker() {
-  const { indices, loading } = useMarketIndices();
+  const { indices, loading, isAiPowered } = useMarketIndices();
 
   if (loading && indices.length === 0) {
     return (
@@ -17,7 +17,13 @@ export default function MarketPulseTicker() {
   if (!indices.length) return null;
 
   return (
-    <div className="w-full bg-slate-900 text-white py-2 overflow-hidden whitespace-nowrap rounded-t-3xl border-b border-slate-800">
+    <div className="w-full bg-slate-900 text-white py-2 overflow-hidden whitespace-nowrap rounded-t-3xl border-b border-slate-800 flex items-center">
+      {isAiPowered && (
+        <div className="pl-6 pr-3 border-r border-slate-800 flex items-center gap-2 group shrink-0">
+          <div className="h-2 w-2 rounded-full bg-indigo-500 animate-pulse" />
+          <span className="text-[9px] font-black uppercase tracking-widest text-indigo-400">Gemini Live</span>
+        </div>
+      )}
       <div className="flex animate-marquee gap-12 px-6">
         {[...indices, ...indices].map((item, i) => (
           <div key={`${item.name}-${i}`} className="flex items-center gap-3">

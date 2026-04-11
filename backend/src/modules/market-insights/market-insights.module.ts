@@ -9,6 +9,6 @@ import { PortfolioObserverService } from './portfolio-observer.service';
   imports: [PrismaModule],
   controllers: [MarketInsightsController],
   providers: [MarketInsightsService, AiInsightService, PortfolioObserverService],
-  exports: [MarketInsightsService],
+  exports: [MarketInsightsService, AiInsightService],
 })
 export class MarketInsightsModule {}

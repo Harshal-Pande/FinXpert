@@ -279,15 +279,15 @@ export default function DashboardPage() {
                     const getTheme = (cat: string) => {
                       switch (cat) {
                         case 'RISK':
-                          return { bg: 'bg-red-50', text: 'text-red-700', border: 'border-red-100', btn: 'Action required', icon: '🚨' };
+                          return { bg: 'bg-red-50', text: 'text-red-700', border: 'border-red-100', icon: '🚨' };
                         case 'DEPLOY':
-                          return { bg: 'bg-amber-50', text: 'text-amber-700', border: 'border-amber-100', btn: 'Review cash', icon: '💰' };
+                          return { bg: 'bg-amber-50', text: 'text-amber-700', border: 'border-amber-100', icon: '💰' };
                         case 'EXPERT':
-                          return { bg: 'bg-emerald-50', text: 'text-emerald-700', border: 'border-emerald-100', btn: 'View context', icon: '📰' };
+                          return { bg: 'bg-emerald-50', text: 'text-emerald-700', border: 'border-emerald-100', icon: '📰' };
                         case 'REBALANCE':
-                          return { bg: 'bg-indigo-50', text: 'text-indigo-700', border: 'border-indigo-100', btn: 'Rebalance', icon: '⚖️' };
+                          return { bg: 'bg-indigo-50', text: 'text-indigo-700', border: 'border-indigo-100', icon: '⚖️' };
                         default:
-                          return { bg: 'bg-slate-50', text: 'text-slate-700', border: 'border-slate-200', btn: 'Review', icon: '⚡' };
+                          return { bg: 'bg-slate-50', text: 'text-slate-700', border: 'border-slate-200', icon: '⚡' };
                       }
                     };
                     const theme = getTheme(insight.category);
@@ -305,14 +305,8 @@ export default function DashboardPage() {
                         </div>
                         <p className="text-[11px] font-extrabold text-slate-900 leading-snug mb-1.5">{insight.title}</p>
                         <p className="text-xs font-semibold text-slate-700 leading-snug mb-3 pr-1">{insight.recommendation}</p>
-                        <div className="flex items-center justify-between mt-auto pt-2 border-t border-black/5">
+                        <div className="flex items-center mt-auto pt-2 border-t border-black/5">
                           <span className={`text-[9px] font-black uppercase ${theme.text}`}>Impact: {insight.impact}</span>
-                          <button
-                            type="button"
-                            className={`flex items-center gap-1.5 text-[10px] font-black uppercase tracking-tight py-1 px-3 rounded-lg bg-white border ${theme.border} ${theme.text} hover:scale-[1.02] active:scale-100 transition-transform shadow-sm`}
-                          >
-                            {theme.btn} <ChevronRight className="h-3 w-3" />
-                          </button>
                         </div>
                       </div>
                     );
