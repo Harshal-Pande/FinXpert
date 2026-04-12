@@ -162,7 +162,10 @@ export class AiInsightService {
   /**
    * Fuzzy-match an instrument name and return an approximate current price per unit in INR (CMP).
    */
-  async resolveInstrumentCurrentPriceInr(instrumentName: string): Promise<number | null> {
+  async resolveInstrumentCurrentPriceInr(
+    instrumentName: string,
+    investmentCategory?: string,
+  ): Promise<number | null> {
     if (!this.genAI) {
       return null;
     }
@@ -170,10 +173,29 @@ export class AiInsightService {
       return null;
     }
 
+    const cat =
+      investmentCategory && investmentCategory.trim().length > 0
+        ? investmentCategory.trim().toUpperCase()
+        : 'UNKNOWN';
+    const categoryHint =
+      cat === 'STOCK'
+        ? 'Treat as an Indian listed equity (NSE/BSE), ETF, or stock-like instrument.'
+        : cat === 'DEBT'
+          ? 'Treat as Indian fixed income: bonds, gilts, FD-like listed debt, or liquid/debt funds — price per unit or clean price as applicable.'
+        : cat === 'CRYPTO'
+          ? 'Treat as a major cryptocurrency quoted in INR (e.g. BTC/INR on Indian or global spot).'
+          : cat === 'MUTUAL_FUND'
+            ? 'Treat as an Indian mutual fund scheme — use latest NAV per unit in INR.'
+            : 'Infer asset class from the name.';
+
     const prompt = `The advisor typed this Indian portfolio holding name (may have typos or abbreviations): "${instrumentName}".
-Identify the most likely real instrument: NSE/BSE stock, Indian mutual fund scheme, ETF, SGB, or major crypto in INR.
+
+InvestmentCategory from our system (authoritative context for asset class): "${cat}".
+${categoryHint}
+
+Identify the most likely real instrument consistent with that category.
 Respond with JSON ONLY, no markdown: {"matchedName":"string","currentPriceINR":number}
-where currentPriceINR is the best approximate current market price for ONE unit (one share or one NAV unit) in INR, using 2 decimals when needed. If ambiguous, pick the most liquid match.`;
+where currentPriceINR is the best approximate current market price for ONE unit (one share, one NAV unit, one coin, or one bond unit as applicable) in INR, using 2 decimals when needed. If ambiguous, pick the most liquid match.`;
 
     const modelsToTry = ['gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-1.5-flash', 'gemini-pro'];
 

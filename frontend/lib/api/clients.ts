@@ -3,7 +3,7 @@ import { apiClient } from './client';
 export interface Investment {
   id: string;
   investment_type: 'Stock' | 'Crypto' | 'Debt' | 'Mutual_Fund';
-  category: 'STOCK' | 'MUTUAL_FUND' | 'CRYPTO' | 'CASH' | 'GOLD';
+  category: 'STOCK' | 'DEBT' | 'CRYPTO' | 'MUTUAL_FUND';
   instrument_name: string;
   quantity: number;
   buyPrice: number;

@@ -1,7 +1,7 @@
 import { apiClient } from './client';
 import type { Investment } from './clients';
 
-export type SimpleInvestmentCategory = 'equity' | 'debt' | 'cash' | 'gold';
+export type SimpleInvestmentCategory = 'STOCK' | 'DEBT' | 'CRYPTO' | 'MUTUAL_FUND';
 
 export interface CreateInvestmentPayload {
   instrument_name: string;

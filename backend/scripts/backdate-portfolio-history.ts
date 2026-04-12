@@ -22,6 +22,13 @@ async function main() {
   });
   console.log(`Updated created_at on ${inv.count} investments → ${sixMonthsAgo.toISOString()}`);
 
+  const categoryFix = await prisma.$executeRaw`
+    UPDATE "Investment"
+    SET category = 'DEBT'::"InvestmentCategory"
+    WHERE "investment_type" = 'Debt' AND category = 'MUTUAL_FUND'::"InvestmentCategory"
+  `;
+  console.log(`Aligned legacy Debt rows to DEBT category (rows updated): ${categoryFix}`);
+
   await prisma.portfolioHistory.deleteMany({});
 
   const clients = await prisma.client.findMany({

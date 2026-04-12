@@ -51,10 +51,9 @@ enum InvestmentType {
 
 enum InvestmentCategory {
   STOCK
-  MUTUAL_FUND
+  DEBT
   CRYPTO
-  CASH
-  GOLD
+  MUTUAL_FUND
 }
 
 model Investment {

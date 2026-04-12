@@ -463,7 +463,7 @@ export class DashboardService {
     const totalAUM = investments.reduce((sum, inv) => sum + inv.total_value, 0);
 
     const cashAggregation = investments
-      .filter((inv) => inv.category === InvestmentCategory.CASH)
+      .filter((inv) => inv.category === InvestmentCategory.DEBT)
       .reduce(
         (acc, inv) => {
           const cid = inv.client_id;

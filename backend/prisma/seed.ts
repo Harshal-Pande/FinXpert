@@ -51,7 +51,7 @@ function mapCategory(type: InvestmentType): InvestmentCategory {
   if (type === 'Stock') return 'STOCK';
   if (type === 'Crypto') return 'CRYPTO';
   if (type === 'Mutual_Fund') return 'MUTUAL_FUND';
-  return 'CASH';
+  return 'DEBT';
 }
 
 async function main() {

@@ -7,8 +7,8 @@ export class UpdateAssetDto {
   investment_type?: 'Stock' | 'Crypto' | 'Debt' | 'Mutual Fund';
 
   @IsOptional()
-  @IsIn(['STOCK', 'MUTUAL_FUND', 'CRYPTO', 'CASH', 'GOLD'])
-  category?: 'STOCK' | 'MUTUAL_FUND' | 'CRYPTO' | 'CASH' | 'GOLD';
+  @IsIn(['STOCK', 'DEBT', 'CRYPTO', 'MUTUAL_FUND'])
+  category?: 'STOCK' | 'DEBT' | 'CRYPTO' | 'MUTUAL_FUND';
 
   @IsOptional()
   @IsString()

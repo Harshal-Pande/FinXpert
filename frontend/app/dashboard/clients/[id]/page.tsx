@@ -49,7 +49,7 @@ export default function ClientDetailPage() {
   const [addAssetError, setAddAssetError] = useState<string | null>(null);
   const [addAssetForm, setAddAssetForm] = useState({
     instrument_name: '',
-    category: 'equity' as SimpleInvestmentCategory,
+    category: 'STOCK' as SimpleInvestmentCategory,
     price: '',
     quantity: '',
   });
@@ -88,8 +88,8 @@ export default function ClientDetailPage() {
   }, [client]);
 
   const _allAssets = client?.investments ?? [];
-  const _debtAssets = _allAssets.filter((a) => a.investment_type === 'Debt');
-  const _mutualFundAssets = _allAssets.filter((a) => a.investment_type === 'Mutual_Fund');
+  const _debtAssets = _allAssets.filter((a) => a.category === 'DEBT');
+  const _mutualFundAssets = _allAssets.filter((a) => a.category === 'MUTUAL_FUND');
 
   const _allocateDeduction = (assets: typeof _allAssets, totalDeduction: number) => {
     const deductions: Record<string, number> = {};
@@ -188,7 +188,7 @@ export default function ClientDetailPage() {
         quantity,
       });
       toast.success('Asset added', { description: 'CMP resolved via Gemini where available.' });
-      setAddAssetForm({ instrument_name: '', category: 'equity', price: '', quantity: '' });
+      setAddAssetForm({ instrument_name: '', category: 'STOCK', price: '', quantity: '' });
       closeAddAssetModal();
       await reloadClient();
     } catch (err) {
@@ -510,10 +510,10 @@ export default function ClientDetailPage() {
                   }
                   className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm focus:border-slate-800 focus:outline-none"
                 >
-                  <option value="equity">Equity</option>
-                  <option value="debt">Debt</option>
-                  <option value="cash">Cash</option>
-                  <option value="gold">Gold</option>
+                  <option value="STOCK">Stock</option>
+                  <option value="DEBT">Debt</option>
+                  <option value="CRYPTO">Crypto</option>
+                  <option value="MUTUAL_FUND">Mutual Fund</option>
                 </select>
               </div>
               <div className="grid grid-cols-2 gap-3">

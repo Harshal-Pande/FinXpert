@@ -17,15 +17,22 @@ function unitCost(inv: Investment): number {
   return inv.buy_rate > 0 ? inv.buy_rate : 0;
 }
 
-function fallbackPerformance(investment: Investment) {
-  if (investment.category === 'CASH') {
-    return {
-      invested_amount: 0,
-      current_value: 0,
-      absolute_pnl: 0,
-      pnl_percentage: 0,
-    };
+function marketMeltdownFactor(category: Investment['category']): number {
+  switch (category) {
+    case 'CRYPTO':
+      return 0.3;
+    case 'STOCK':
+      return 0.6;
+    case 'MUTUAL_FUND':
+      return 0.78;
+    case 'DEBT':
+      return 0.95;
+    default:
+      return 1;
   }
+}
+
+function fallbackPerformance(investment: Investment) {
   const cost = unitCost(investment);
   const invested_amount = investment.quantity * cost;
   const current_value = investment.quantity * investment.cmp;
@@ -57,11 +64,7 @@ export default function AssetCard({
   const marketValue = perf.current_value;
   const stressedMarketValue =
     activeSimulation === 'MARKET_MELTDOWN'
-      ? investment.category === 'STOCK'
-        ? marketValue * 0.6
-        : investment.category === 'CRYPTO'
-        ? marketValue * 0.3
-        : marketValue
+      ? marketValue * marketMeltdownFactor(investment.category)
       : activeSimulation === 'MEDICAL_SHOCK'
       ? Math.max(0, marketValue - medicalShockDeduction)
       : marketValue;
@@ -84,27 +87,25 @@ export default function AssetCard({
       <p className="mt-1 text-xs text-slate-500">
         Qty: {investment.quantity} | Avg: {investment.buyPrice.toFixed(2)} | CMP: {investment.cmp.toFixed(2)}
       </p>
-      {investment.category !== 'CASH' && (
-        <div className="mt-2">
-          {viewMode === 'VALUE' ? (
-            activeSimulation ? (
-              <div className="flex items-center gap-2">
-                <p className="text-xs text-slate-500 line-through">{formatInr(marketValue)}</p>
-                <p className="text-sm font-semibold text-red-600">{formatInr(stressedMarketValue)}</p>
-              </div>
-            ) : (
-              <p className="text-sm font-semibold text-slate-900">{formatInr(perf.current_value)}</p>
-            )
+      <div className="mt-2">
+        {viewMode === 'VALUE' ? (
+          activeSimulation ? (
+            <div className="flex items-center gap-2">
+              <p className="text-xs text-slate-500 line-through">{formatInr(marketValue)}</p>
+              <p className="text-sm font-semibold text-red-600">{formatInr(stressedMarketValue)}</p>
+            </div>
           ) : (
-            <p
-              className={`text-sm font-semibold ${displayReturn >= 0 ? 'text-green-600' : 'text-red-600'}`}
-            >
-              {formatInr(displayReturn)} ({displayReturnPct >= 0 ? '+' : ''}
-              {displayReturnPct.toFixed(2)}%)
-            </p>
-          )}
-        </div>
-      )}
+            <p className="text-sm font-semibold text-slate-900">{formatInr(perf.current_value)}</p>
+          )
+        ) : (
+          <p
+            className={`text-sm font-semibold ${displayReturn >= 0 ? 'text-green-600' : 'text-red-600'}`}
+          >
+            {formatInr(displayReturn)} ({displayReturnPct >= 0 ? '+' : ''}
+            {displayReturnPct.toFixed(2)}%)
+          </p>
+        )}
+      </div>
     </div>
   );
 }

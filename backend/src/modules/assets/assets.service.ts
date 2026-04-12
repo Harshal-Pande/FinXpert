@@ -12,11 +12,12 @@ function normalizeInvestmentType(value: 'Stock' | 'Crypto' | 'Debt' | 'Mutual Fu
 function mapSimpleCategory(
   raw: string,
 ): { investment_type: InvestmentType; category: InvestmentCategory } {
-  const c = raw.toLowerCase();
-  if (c === 'equity') return { investment_type: 'Stock', category: 'STOCK' };
-  if (c === 'debt') return { investment_type: 'Debt', category: 'MUTUAL_FUND' };
-  if (c === 'cash') return { investment_type: 'Debt', category: 'CASH' };
-  if (c === 'gold') return { investment_type: 'Mutual_Fund', category: 'GOLD' };
+  const u = raw.trim().toUpperCase().replace(/\s+/g, '_');
+  if (u === 'STOCK' || raw.toLowerCase() === 'equity') return { investment_type: 'Stock', category: 'STOCK' };
+  if (u === 'DEBT' || raw.toLowerCase() === 'cash') return { investment_type: 'Debt', category: 'DEBT' };
+  if (u === 'CRYPTO') return { investment_type: 'Crypto', category: 'CRYPTO' };
+  if (u === 'MUTUAL_FUND' || u === 'MUTUALFUND' || raw.toLowerCase() === 'gold')
+    return { investment_type: 'Mutual_Fund', category: 'MUTUAL_FUND' };
   return { investment_type: 'Stock', category: 'STOCK' };
 }
 
@@ -34,15 +35,6 @@ export class AssetsService {
     totalCost: number;
     cmp: number;
   }) {
-    if (investment.category === 'CASH') {
-      return {
-        invested_amount: 0,
-        current_value: 0,
-        absolute_pnl: 0,
-        pnl_percentage: 0,
-      };
-    }
-
     const invested_amount =
       investment.totalCost > 0 ? investment.totalCost : investment.quantity * investment.buyPrice;
     const current_value = investment.quantity * investment.cmp;
@@ -93,8 +85,11 @@ export class AssetsService {
     const boughtAt = dto.bought_at ? new Date(dto.bought_at) : new Date();
 
     let cmp = unitPrice;
-    if (category !== 'CASH' && this.aiInsight) {
-      const resolved = await this.aiInsight.resolveInstrumentCurrentPriceInr(dto.instrument_name.trim());
+    if (this.aiInsight) {
+      const resolved = await this.aiInsight.resolveInstrumentCurrentPriceInr(
+        dto.instrument_name.trim(),
+        category,
+      );
       if (resolved != null && resolved > 0) {
         cmp = resolved;
       }

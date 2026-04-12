@@ -71,7 +71,7 @@ export class PortfolioObserverService implements OnModuleInit {
 
     const [cashAggregate, latestHealthScore] = await Promise.all([
       this.prisma.investment.aggregate({
-        where: { client_id: clientId, category: 'CASH' },
+        where: { client_id: clientId, category: 'DEBT' },
         _sum: { total_value: true },
       }),
       this.prisma.healthScore.findFirst({
@@ -89,9 +89,9 @@ export class PortfolioObserverService implements OnModuleInit {
         clientId: client.id,
         clientName: client.name,
         eventType: 'IDLE_CASH',
-        title: 'Idle Cash Alert',
+        title: 'Large debt / liquid sleeve',
         severity: 'medium',
-        summary: `Idle cash for ${client.name} is ₹${Math.round(totalCash).toLocaleString('en-IN')}. Consider deployment.`,
+        summary: `Large debt / liquid sleeve for ${client.name} is ₹${Math.round(totalCash).toLocaleString('en-IN')}. Consider deployment or rebalancing.`,
       });
     }
 

@@ -29,21 +29,34 @@ const TABS: { id: Tab; label: string; icon: string }[] = [
   { id: 'mutual_fund', label: 'Mutual Fund', icon: '📊' },
 ];
 
-const TYPE_MAP: Record<Tab, string> = {
-  stock:       'Stock',
-  debt:        'Debt',
-  crypto:      'Crypto',
-  mutual_fund: 'Mutual_Fund',
+const TAB_CATEGORY: Record<Tab, Investment['category']> = {
+  stock:       'STOCK',
+  debt:        'DEBT',
+  crypto:      'CRYPTO',
+  mutual_fund: 'MUTUAL_FUND',
 };
 
 const CATEGORY_COLORS: Record<string, string> = {
   STOCK:       'bg-indigo-50 text-indigo-700',
   CRYPTO:      'bg-amber-50  text-amber-700',
   MUTUAL_FUND: 'bg-emerald-50 text-emerald-700',
-  CASH:        'bg-slate-100 text-slate-500',
   DEBT:        'bg-blue-50   text-blue-700',
-  GOLD:        'bg-yellow-50 text-yellow-800',
 };
+
+function marketMeltdownFactor(category: Investment['category']): number {
+  switch (category) {
+    case 'CRYPTO':
+      return 0.3;
+    case 'STOCK':
+      return 0.6;
+    case 'MUTUAL_FUND':
+      return 0.78;
+    case 'DEBT':
+      return 0.95;
+    default:
+      return 1;
+  }
+}
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 function unitCost(asset: Investment): number {
@@ -81,8 +94,7 @@ function getCategoryTotal(
     const base = asset.quantity * asset.cmp;
     let stressed = base;
     if (activeSimulation === 'MARKET_MELTDOWN') {
-      if (asset.investment_type === 'Stock')  stressed = base * 0.6;
-      if (asset.investment_type === 'Crypto') stressed = base * 0.3;
+      stressed = base * marketMeltdownFactor(asset.category);
     }
     if (activeSimulation === 'MEDICAL_SHOCK') {
       if (tab === 'debt')        stressed = Math.max(0, base - (debtAllocation.deductions[asset.id] ?? 0));
@@ -102,8 +114,7 @@ function getStressedValue(
 ): number {
   const base = asset.quantity * asset.cmp;
   if (activeSimulation === 'MARKET_MELTDOWN') {
-    if (asset.investment_type === 'Stock')  return base * 0.6;
-    if (asset.investment_type === 'Crypto') return base * 0.3;
+    return base * marketMeltdownFactor(asset.category);
   }
   if (activeSimulation === 'MEDICAL_SHOCK') {
     if (tab === 'debt')        return Math.max(0, base - (debtAllocation.deductions[asset.id] ?? 0));
@@ -303,7 +314,7 @@ export default function AssetVault({
   const contentRef                = useRef<HTMLDivElement>(null);
   const [contentHeight, setContentHeight] = useState<number | 'auto'>('auto');
 
-  const assets = investments.filter((inv) => inv.investment_type === TYPE_MAP[activeTab]);
+  const assets = investments.filter((inv) => inv.category === TAB_CATEGORY[activeTab]);
 
   useLayoutEffect(() => {
     if (contentRef.current) {
@@ -335,7 +346,7 @@ export default function AssetVault({
       {/* ── Pill Tab Bar ───────────────────────────────────────────────────── */}
       <div className="flex flex-wrap items-center gap-1.5 p-4 border-b border-slate-100 bg-slate-50/60">
         {TABS.map((tab) => {
-          const count    = investments.filter((inv) => inv.investment_type === TYPE_MAP[tab.id]).length;
+          const count    = investments.filter((inv) => inv.category === TAB_CATEGORY[tab.id]).length;
           const isActive = activeTab === tab.id;
           return (
             <button

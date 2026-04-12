@@ -14,8 +14,8 @@ export class CreateAssetDto {
   @IsString()
   instrument_name: string;
 
-  @IsIn(['equity', 'debt', 'cash', 'gold', 'Equity', 'Debt', 'Cash', 'Gold'])
-  category: 'equity' | 'debt' | 'cash' | 'gold' | 'Equity' | 'Debt' | 'Cash' | 'Gold';
+  @IsIn(['STOCK', 'DEBT', 'CRYPTO', 'MUTUAL_FUND'])
+  category: 'STOCK' | 'DEBT' | 'CRYPTO' | 'MUTUAL_FUND';
 
   @ValidateIf((o: CreateAssetDto) => o.value == null)
   @IsNumber()

@@ -190,34 +190,34 @@ export class HealthScoreService {
 
     if (scenario === 'MARKET_MELTDOWN') {
       cloned.investments = cloned.investments.map((investment) => {
-        if (investment.category === 'STOCK') {
-          return {
-            ...investment,
-            cmp: investment.cmp * 0.6,
-            total_value: investment.total_value * 0.6,
-          };
-        }
-        if (investment.category === 'CRYPTO') {
-          return {
-            ...investment,
-            cmp: investment.cmp * 0.3,
-            total_value: investment.total_value * 0.3,
-          };
-        }
-        return investment;
+        const cat = investment.category as string;
+        let factor = 1;
+        if (cat === 'CRYPTO') factor = 0.3;
+        else if (cat === 'STOCK') factor = 0.6;
+        else if (cat === 'MUTUAL_FUND') factor = 0.78;
+        else if (cat === 'DEBT') factor = 0.95;
+        if (factor === 1) return investment;
+        return {
+          ...investment,
+          cmp: investment.cmp * factor,
+          total_value: investment.total_value * factor,
+        };
       });
     }
 
     if (scenario === 'JOB_LOSS') {
       cloned.annual_income = 0;
       const cashLike = cloned.investments
-        .filter((investment) => investment.category === 'CASH')
+        .filter((investment) => {
+          const c = investment.category as string;
+          return c === 'DEBT' || c === 'MUTUAL_FUND';
+        })
         .reduce((sum, investment) => sum + investment.total_value, 0);
       const emergency = cloned.emergency_fund ?? 0;
       const protectedLiquidity = cashLike + emergency;
       const syntheticAlrInvestment = {
         investment_type: 'CASH_BUFFER',
-        category: 'CASH' as InvestmentCategory,
+        category: 'DEBT' as InvestmentCategory,
         total_value: protectedLiquidity,
         buy_rate: 1,
         cmp: 1,
@@ -229,17 +229,23 @@ export class HealthScoreService {
 
     if (scenario === 'MEDICAL_SHOCK') {
       let remainingShock = 500_000;
-      cloned.investments = cloned.investments.map((investment) => {
-        if (investment.category !== 'CASH' || remainingShock <= 0) return investment;
-        const deduction = Math.min(investment.total_value, remainingShock);
+      const applyMedicalDraw = (inv: (typeof cloned.investments)[0]) => {
+        if (remainingShock <= 0) return inv;
+        const deduction = Math.min(inv.total_value, remainingShock);
         remainingShock -= deduction;
-        const nextValue = Math.max(0, investment.total_value - deduction);
+        const nextValue = Math.max(0, inv.total_value - deduction);
         return {
-          ...investment,
+          ...inv,
           total_value: nextValue,
-          cmp: investment.quantity > 0 ? nextValue / investment.quantity : 0,
+          cmp: inv.quantity > 0 ? nextValue / inv.quantity : 0,
         };
-      });
+      };
+      cloned.investments = cloned.investments.map((investment) =>
+        (investment.category as string) === 'DEBT' ? applyMedicalDraw(investment) : investment,
+      );
+      cloned.investments = cloned.investments.map((investment) =>
+        (investment.category as string) === 'MUTUAL_FUND' ? applyMedicalDraw(investment) : investment,
+      );
       if (remainingShock > 0) {
         cloned.emergency_fund = Math.max(0, (cloned.emergency_fund ?? 0) - remainingShock);
       }
@@ -289,7 +295,10 @@ export class HealthScoreService {
 
     const sample = this.applyScenarioToClient(clients[0] as any, scenarioType);
     const cashLike = sample.investments
-      .filter((investment) => investment.category === 'CASH')
+      .filter((investment) => {
+        const c = investment.category as string;
+        return c === 'DEBT' || c === 'MUTUAL_FUND';
+      })
       .reduce((sum, investment) => sum + investment.total_value, 0);
     const survivalHorizonMonths = sample.monthly_expense > 0
       ? (cashLike + (sample.emergency_fund ?? 0)) / sample.monthly_expense
@@ -351,7 +360,10 @@ export class HealthScoreService {
     const stressedScore = this.normalizeRawScore(stressedBreakdown.rawScore, stressedMin, stressedMax);
 
     const cashLike = stressedClient.investments
-      .filter((investment) => investment.category === 'CASH')
+      .filter((investment) => {
+        const c = investment.category as string;
+        return c === 'DEBT' || c === 'MUTUAL_FUND';
+      })
       .reduce((sum, investment) => sum + investment.total_value, 0);
     const survivalHorizonMonths = stressedClient.monthly_expense > 0
       ? (cashLike + (stressedClient.emergency_fund ?? 0)) / stressedClient.monthly_expense

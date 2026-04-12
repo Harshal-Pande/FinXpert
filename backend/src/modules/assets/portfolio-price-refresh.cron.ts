@@ -36,11 +36,12 @@ export class PortfolioPriceRefreshCron {
 
     for (const inv of rows) {
       let cmp = inv.buyPrice;
-      if (inv.category !== 'CASH') {
-        const resolved = await this.aiInsight.resolveInstrumentCurrentPriceInr(inv.instrument_name);
-        if (resolved != null && resolved > 0) {
-          cmp = resolved;
-        }
+      const resolved = await this.aiInsight.resolveInstrumentCurrentPriceInr(
+        inv.instrument_name,
+        inv.category,
+      );
+      if (resolved != null && resolved > 0) {
+        cmp = resolved;
       }
 
       const total_value = inv.quantity * cmp;
