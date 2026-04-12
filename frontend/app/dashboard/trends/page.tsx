@@ -39,6 +39,13 @@ function buildEmptyOrBanner(res: MarketNewsFeedResponse, hasItems: boolean): {
           'Demo feed: NewsAPI returned an error or rate limit. Check Render logs; use Retry after a few minutes.',
       };
     }
+    if (res.feedSource === 'curated') {
+      return {
+        feedEmptyMessage: null,
+        demoBanner:
+          'NewsAPI and Gemini were unavailable; showing curated Global, Domestic, and Sector-wise headlines.',
+      };
+    }
     return { feedEmptyMessage: null, demoBanner: null };
   }
 
@@ -86,7 +93,7 @@ export default function TrendsPage() {
     setDemoBanner(null);
     setQueryUsed('');
     try {
-      const res = await getMarketNewsFeed(20, scope);
+      const res = await getMarketNewsFeed(30, scope);
       setQueryUsed(res.queryUsed);
       const mapped = res.items.map(toMarketEvent);
       setNews(mapped);
@@ -157,8 +164,8 @@ export default function TrendsPage() {
         <div className="mb-8">
           <Breadcrumb />
           <p className="mt-2 text-sm text-slate-500">
-            Live feed from NewsAPI via FinXpert. Each tab sends a different search query to the backend. Refreshes every 5
-            minutes.
+            Live headlines from NewsAPI when available; Gemini may supplement fallbacks; otherwise FinXpert shows curated
+            Global, Domestic, and Sector-wise items. Each tab sends a different search query. Refreshes every 5 minutes.
           </p>
           {queryUsed ? (
             <p className="mt-1 text-xs font-mono text-slate-500 break-all">
@@ -268,14 +275,10 @@ export default function TrendsPage() {
                           timeStyle: 'short',
                         })}
                       </span>
-                      <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-indigo-100 text-indigo-800 text-[10px] font-bold uppercase border border-indigo-200">
-                        SOURCE: {event.source === 'Gemini AI' ? 'Gemini AI' : 'NewsAPI'}
-                      </span>
                     </div>
                     <h3 className="text-lg font-bold text-slate-800 group-hover:text-indigo-600 transition-colors uppercase tracking-tight">
                       {event.title}
                     </h3>
-                    {event.source && event.source !== 'Gemini AI' && event.source !== 'NewsAPI' ? <p className="mt-1 text-xs font-semibold text-slate-500">{event.source}</p> : null}
                     <p className="mt-2 text-sm text-slate-600 leading-relaxed font-medium">{event.summary}</p>
                     {event.metrics ? (
                       <div className="mt-3 flex gap-4 text-[10px] font-mono text-slate-500 bg-slate-50 p-2 rounded-lg border border-slate-100 flex-wrap">

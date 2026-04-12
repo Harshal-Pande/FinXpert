@@ -1,35 +1,18 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { MarketDataService } from '../../services/market-data.service';
 import type { NewsArticle, NewsFetchProvider } from '../../services/market-data.service';
+import type { MarketNewsCategory, MarketNewsImpact, MarketNewsItemDto } from './news.dto';
+import { getCuratedMarketNewsFallback } from './curated-fallback-news';
 
-export type MarketNewsCategory = 'Global' | 'Domestic' | 'Sector-wise';
-export type MarketNewsImpact = 'High' | 'Med' | 'Low';
+export type { MarketNewsCategory, MarketNewsImpact, MarketNewsItemDto } from './news.dto';
 
 export type MarketNewsFeedSource =
   | 'live'
   | 'fallback_no_api_key'
   | 'fallback_error'
   | 'empty_live'
-  | 'fallback_gemini';
-
-export interface MarketNewsItemDto {
-  headline: string;
-  source: string;
-  time: string;
-  url: string;
-  thumbnail: string | null;
-  summary: string;
-  category: MarketNewsCategory;
-  impact: MarketNewsImpact;
-  sentiment?: 'Positive' | 'Negative' | 'Neutral';
-  metrics?: {
-    accuracy: number;
-    rmse: number;
-    mape: number;
-    mse: number;
-    mae: number;
-  };
-}
+  | 'fallback_gemini'
+  | 'curated';
 
 export interface MarketNewsFeedResponse {
   items: MarketNewsItemDto[];
@@ -48,7 +31,7 @@ const SECTOR_HINTS =
 const HIGH_IMPACT_HINTS =
   /\b(crash|plunge|surge|rbi|fed|rate hike|emergency|default|crisis|record high|record low)\b/i;
 
-/** NewsAPI `q` strings per UI scope (Task 4: distinct keywords per filter). */
+/** NewsAPI `q` strings per UI scope. */
 const SCOPE_SEARCH: Record<Exclude<NewsScope, 'All'>, string> = {
   Global: '("stock market" OR equities OR "Federal Reserve" OR "S&P 500" OR "Wall Street")',
   Domestic: '(NIFTY OR Sensex OR BSE OR NSE OR RBI OR "Indian stock market" OR rupee)',
@@ -120,8 +103,16 @@ export class NewsService {
       };
     }
 
-    const pool = [...articles].filter((a) => a.title && a.url);
+    const pool = [...articles].filter((a) => a.title?.trim() && a.url && a.url !== '#');
     if (pool.length === 0) {
+      if (provider === 'fallback_no_key' || provider === 'fallback_error') {
+        const curated = getCuratedMarketNewsFallback();
+        return {
+          items: curated,
+          feedSource: 'curated',
+          queryUsed: query,
+        };
+      }
       this.logger.warn('News feed: no articles with title+url after filter');
       return {
         items: [],

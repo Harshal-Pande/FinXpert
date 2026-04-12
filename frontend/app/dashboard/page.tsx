@@ -1,7 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import Link from 'next/link';
+import { useEffect, useMemo, useState } from 'react';
 import {
   Users,
   Zap,
@@ -13,9 +12,6 @@ import {
 } from 'lucide-react';
 import { getDashboardSummary, type DashboardSummary } from '@/lib/api/dashboard';
 import { getAdvisorAumHistory, type AumHistoryPoint } from '@/lib/api/portfolio-history';
-import { getMarketNewsFeed, toMarketEvent } from '@/lib/api/news';
-import type { MarketEvent } from '@/lib/api/market';
-import { ApiError } from '@/lib/api/client';
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid,
   Tooltip, ResponsiveContainer
@@ -24,9 +20,6 @@ import MarketPulseTicker from '@/components/dashboard/MarketPulseTicker';
 import MarketOverviewCards from '@/components/dashboard/MarketOverviewCards';
 import { MarketIndicesProvider } from '@/components/dashboard/MarketIndicesProvider';
 import ActionCenter from '@/components/dashboard/ActionCenter';
-
-/** Auto-refresh market news (5–10 items from `/api/news/market`). */
-const NEWS_REFRESH_MS = 180_000;
 
 // --- GlassCard Wrapper Component ---
 function GlassCard({ title, children, className = "", subtitle }: { title?: string, children: React.ReactNode, className?: string, subtitle?: string }) {
@@ -51,10 +44,6 @@ export default function DashboardPage() {
   const [dashboardError, setDashboardError] = useState<string | null>(null);
   const [aumHistory, setAumHistory] = useState<AumHistoryPoint[]>([]);
   const [lastUpdated, setLastUpdated] = useState<string>('');
-  const [marketFeed, setMarketFeed] = useState<MarketEvent[]>([]);
-  const [newsLoading, setNewsLoading] = useState(true);
-  const [newsError, setNewsError] = useState<string | null>(null);
-  const [newsUpdated, setNewsUpdated] = useState<string>('');
 
   const fetchDashboardData = async () => {
     setDashboardError(null);
@@ -73,57 +62,11 @@ export default function DashboardPage() {
     }
   };
 
-  const fetchNews = useCallback(async () => {
-    setNewsError(null);
-    setNewsLoading(true);
-    try {
-      const res = await getMarketNewsFeed(10, 'All');
-      if (res.items.length === 0) {
-        setMarketFeed([]);
-        setNewsError(
-          res.feedSource === 'fallback_no_api_key'
-            ? 'News: demo mode — NEWS_API_KEY is not set on the server.'
-            : res.feedSource === 'empty_live'
-              ? `News: no articles for query "${res.queryUsed}". Check NewsAPI / rate limits.`
-              : 'News feed returned no articles. Check NEXT_PUBLIC_API_URL and Render logs.',
-        );
-        return;
-      }
-      setMarketFeed(res.items.map(toMarketEvent));
-      if (res.feedSource !== 'live') {
-        setNewsError(
-          res.feedSource === 'fallback_no_api_key'
-            ? 'Showing demo headlines (NEWS_API_KEY not set on server).'
-            : 'Showing demo headlines (NewsAPI error or rate limit).',
-        );
-      }
-      setNewsUpdated(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
-    } catch (e) {
-      if (e instanceof ApiError) {
-        if (e.status === 404 || e.status === 502 || e.status === 503 || e.status === 504) {
-          setNewsError('Unable to reach news server.');
-        } else {
-          setNewsError(e.message || 'Unable to reach news server.');
-        }
-      } else {
-        setNewsError('Unable to reach news server.');
-      }
-    } finally {
-      setNewsLoading(false);
-    }
-  }, []);
-
   useEffect(() => {
     fetchDashboardData();
     const interval = setInterval(fetchDashboardData, 300000);
     return () => clearInterval(interval);
   }, []);
-
-  useEffect(() => {
-    fetchNews();
-    const interval = setInterval(fetchNews, NEWS_REFRESH_MS);
-    return () => clearInterval(interval);
-  }, [fetchNews]);
 
   const formatInr = (v: number) =>
     new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', notation: 'compact', maximumFractionDigits: 1 }).format(v);
@@ -276,21 +219,34 @@ export default function DashboardPage() {
               ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-8">
                   {summary.strategicInsights.map((insight, i) => {
+                    const catKey = String(insight.category ?? '').toUpperCase();
                     const getTheme = (cat: string) => {
                       switch (cat) {
                         case 'RISK':
-                          return { bg: 'bg-red-50', text: 'text-red-700', border: 'border-red-100', icon: '🚨' };
+                          return { bg: 'bg-red-50', text: 'text-red-700', border: 'border-red-100', icon: '🚨', cta: null as string | null };
                         case 'DEPLOY':
-                          return { bg: 'bg-amber-50', text: 'text-amber-700', border: 'border-amber-100', icon: '💰' };
+                          return {
+                            bg: 'bg-amber-50',
+                            text: 'text-amber-700',
+                            border: 'border-amber-100',
+                            icon: '💰',
+                            cta: 'Review cash',
+                          };
                         case 'EXPERT':
-                          return { bg: 'bg-emerald-50', text: 'text-emerald-700', border: 'border-emerald-100', icon: '📰' };
+                          return {
+                            bg: 'bg-emerald-50',
+                            text: 'text-emerald-700',
+                            border: 'border-emerald-100',
+                            icon: '📰',
+                            cta: 'View context',
+                          };
                         case 'REBALANCE':
-                          return { bg: 'bg-indigo-50', text: 'text-indigo-700', border: 'border-indigo-100', icon: '⚖️' };
+                          return { bg: 'bg-indigo-50', text: 'text-indigo-700', border: 'border-indigo-100', icon: '⚖️', cta: null };
                         default:
-                          return { bg: 'bg-slate-50', text: 'text-slate-700', border: 'border-slate-200', icon: '⚡' };
+                          return { bg: 'bg-slate-50', text: 'text-slate-700', border: 'border-slate-200', icon: '⚡', cta: 'Review' };
                       }
                     };
-                    const theme = getTheme(insight.category);
+                    const theme = getTheme(catKey);
 
                     return (
                       <div
@@ -305,8 +261,18 @@ export default function DashboardPage() {
                         </div>
                         <p className="text-[11px] font-extrabold text-slate-900 leading-snug mb-1.5">{insight.title}</p>
                         <p className="text-xs font-semibold text-slate-700 leading-snug mb-3 pr-1">{insight.recommendation}</p>
-                        <div className="flex items-center mt-auto pt-2 border-t border-black/5">
+                        <div
+                          className={`flex items-center mt-auto pt-2 border-t border-black/5 ${theme.cta ? 'justify-between' : ''}`}
+                        >
                           <span className={`text-[9px] font-black uppercase ${theme.text}`}>Impact: {insight.impact}</span>
+                          {theme.cta ? (
+                            <button
+                              type="button"
+                              className={`flex items-center gap-1.5 text-[10px] font-black uppercase tracking-tight py-1 px-3 rounded-lg bg-white border ${theme.border} ${theme.text} hover:scale-[1.02] active:scale-100 transition-transform shadow-sm`}
+                            >
+                              {theme.cta} <ChevronRight className="h-3 w-3" />
+                            </button>
+                          ) : null}
                         </div>
                       </div>
                     );
@@ -334,92 +300,6 @@ export default function DashboardPage() {
                 <button className="text-[10px] font-bold text-indigo-600 flex items-center gap-1 uppercase">
                   Log History <ChevronRight className="h-3 w-3" />
                 </button>
-              </div>
-            </GlassCard>
-
-            {/* Live News Feed (3 short news incidents) */}
-            <GlassCard title="Live Market Feed">
-              <div className="mt-6 flex items-center justify-between text-[9px] text-slate-400 font-bold uppercase mb-4">
-                <span>Live headlines</span>
-                <span className="flex items-center gap-1 font-normal normal-case">
-                  <Clock className="h-3 w-3" />
-                  {newsUpdated || '—'}
-                </span>
-              </div>
-              {newsError && (
-                <p className="text-[10px] text-amber-800 bg-amber-50 border border-amber-100 rounded-lg px-2 py-1.5 mb-3">
-                  {newsError}
-                </p>
-              )}
-              <div className="mt-2 space-y-3">
-                {newsLoading && marketFeed.length === 0 ? (
-                  <div className="space-y-2 animate-pulse">
-                    <div className="h-16 rounded-xl bg-slate-100" />
-                    <div className="h-16 rounded-xl bg-slate-100" />
-                  </div>
-                ) : marketFeed.length === 0 && !newsError ? (
-                  <p className="text-[10px] text-slate-400 italic py-4 text-center">
-                    No headlines loaded yet.
-                  </p>
-                ) : (
-                  marketFeed.slice(0, 10).map((news, i) => (
-                    <a
-                      key={`${news.url}-${i}`}
-                      href={news.url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="group flex gap-3 rounded-2xl border border-slate-100 bg-white/50 p-2 transition-all hover:border-indigo-200 hover:shadow-md"
-                    >
-                      {news.thumbnail ? (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img
-                          src={news.thumbnail}
-                          alt=""
-                          className="h-14 w-14 shrink-0 rounded-lg object-cover"
-                        />
-                      ) : (
-                        <div className="h-14 w-14 shrink-0 rounded-lg bg-slate-100" />
-                      )}
-                      <div className="min-w-0 flex-1">
-                        <div className="flex items-center gap-2 mb-0.5 flex-wrap">
-                          <span
-                            className={`h-1.5 w-1.5 rounded-full shrink-0 ${
-                              news.impact === 'High'
-                                ? 'bg-red-500 animate-pulse'
-                                : news.impact === 'Med'
-                                  ? 'bg-amber-500'
-                                  : 'bg-blue-500'
-                            }`}
-                          />
-                          <span className="text-[9px] font-bold text-slate-400 uppercase tracking-tighter truncate">
-                            {news.source ? `${news.source} • ` : ''}
-                            {news.category} •{' '}
-                            {new Date(news.timestamp).toLocaleTimeString([], {
-                              hour: '2-digit',
-                              minute: '2-digit',
-                            })}
-                          </span>
-                        </div>
-                        <p className="text-xs font-bold text-slate-800 line-clamp-2 group-hover:text-indigo-600 transition-colors">
-                          {news.title}
-                        </p>
-                        {news.summary ? (
-                          <p className="text-[9px] text-slate-500 mt-0.5 truncate">
-                            {news.summary.length > 90 ? `${news.summary.slice(0, 90)}…` : news.summary}
-                          </p>
-                        ) : null}
-                      </div>
-                    </a>
-                  ))
-                )}
-              </div>
-              <div className="mt-6 pt-4 border-t border-slate-100">
-                <Link
-                  href="/dashboard/trends"
-                  className="w-full text-center block text-[10px] font-bold text-slate-400 hover:text-slate-800 uppercase tracking-widest transition-colors"
-                >
-                  View Full Feed
-                </Link>
               </div>
             </GlassCard>
 

@@ -295,12 +295,12 @@ export class MarketDataService {
       const text = result.response.text();
       const match = text.match(/\[[\s\S]*\]/);
       if (!match) return [];
-      
+
       const parsed = JSON.parse(match[0]) as NewsArticle[];
       return parsed.map((a) => ({
         ...a,
         source: 'Gemini AI',
-        metrics: { accuracy: 0.98, rmse: 0.02, mape: 2.1, mse: 0.0004, mae: 0.015 }
+        metrics: { accuracy: 0.98, rmse: 0.02, mape: 2.1, mse: 0.0004, mae: 0.015 },
       }));
     } catch (err) {
       this.logger.error('Gemini API fallback failed', err);
@@ -318,7 +318,7 @@ export class MarketDataService {
     let articles: NewsArticle[] = [];
 
     if (!this.newsApiKey) {
-      this.logger.warn('NEWS_API_KEY not set, using fallback');
+      this.logger.warn('NEWS_API_KEY not set, using Gemini or curated fallback');
       useFallback = true;
     } else {
       try {
@@ -328,9 +328,9 @@ export class MarketDataService {
             Accept: 'application/json',
           },
         });
-        
+
         if (res.status === 401 || res.status === 429) {
-           useFallback = true;
+          useFallback = true;
         } else {
           const rawText = await res.text();
           try {
@@ -357,7 +357,7 @@ export class MarketDataService {
             useFallback = true;
           }
         }
-      } catch (error) {
+      } catch {
         useFallback = true;
       }
     }
@@ -367,10 +367,11 @@ export class MarketDataService {
       if (geminiNews.length > 0) {
         return { query: logicalQuery, articles: geminiNews, provider: 'fallback_gemini' };
       }
+      const noKey = !this.newsApiKey;
       return {
         query: logicalQuery,
-        articles: this.getFallbackNewsArticles(),
-        provider: 'fallback_error',
+        articles: [],
+        provider: noKey ? 'fallback_no_key' : 'fallback_error',
       };
     }
 
@@ -414,7 +415,11 @@ export class MarketDataService {
       aiRates: aiRates ?? [],
       isAiPowered: hasAiRates,
       newsCount: newsData.articles.length,
-      topHeadline: newsData.articles[0]?.title ?? 'No news available',
+      topHeadline:
+        newsData.articles[0]?.title ??
+        (newsData.provider !== 'newsapi'
+          ? 'Open Market Trends for curated headlines when live news is unavailable'
+          : 'No news available'),
     };
   }
 
@@ -568,64 +573,4 @@ export class MarketDataService {
     }));
   }
 
-  /** Curated demo articles when NewsAPI is unavailable, errors, or returns no usable rows. */
-  getFallbackNewsArticles(): NewsArticle[] {
-    return this.getMockNews();
-  }
-
-  private getMockNews(): NewsArticle[] {
-    const now = Date.now();
-    return [
-      {
-        title: 'Nifty surges 1.2% as Sensex hits record high on FII buying',
-        description:
-          'Benchmark indices extended gains for a third session as global risk appetite improved. Sentiment: Positive (demo).',
-        url: 'https://example.com/news/nifty-rally',
-        source: 'Economic Times',
-        publishedAt: new Date(now).toISOString(),
-        urlToImage: undefined,
-        sentiment: 'Positive',
-      },
-      {
-        title: 'SMA and EMA indicators suggest upward momentum in banking sector',
-        description:
-          'Technical analysis highlights a golden cross in major bank stocks. Sentiment: Positive (demo).',
-        url: 'https://example.com/news/sma-ema-banking',
-        source: 'Livemint',
-        publishedAt: new Date(now - 1800000).toISOString(),
-        urlToImage: undefined,
-        sentiment: 'Positive',
-      },
-      {
-        title: 'MACD line crosses signal line, forecasting strong rally in IT stocks',
-        description:
-          'Short-term trend reversals seen as momentum builds up. Sentiment: Positive (demo).',
-        url: 'https://example.com/news/macd-it-stocks',
-        source: 'Mint',
-        publishedAt: new Date(now - 3600000).toISOString(),
-        urlToImage: undefined,
-        sentiment: 'Positive',
-      },
-      {
-        title: 'RSI enters overbought territory for major blue chips',
-        description:
-          'Investors advised caution as Relative Strength Index peaks above 70. Sentiment: Neutral (demo).',
-        url: 'https://example.com/news/rsi-overbought',
-        source: 'Business Standard',
-        publishedAt: new Date(now - 5400000).toISOString(),
-        urlToImage: undefined,
-        sentiment: 'Neutral',
-      },
-      {
-        title: 'Crude steadies near range as OPEC+ output plans remain unchanged',
-        description:
-          'Energy markets await fresh catalysts; price action muted. Sentiment: Neutral (demo).',
-        url: 'https://example.com/news/oil-flat',
-        source: 'Livemint',
-        publishedAt: new Date(now - 7200000).toISOString(),
-        urlToImage: undefined,
-        sentiment: 'Neutral',
-      },
-    ];
-  }
 }

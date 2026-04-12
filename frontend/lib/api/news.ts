@@ -26,7 +26,8 @@ export type MarketNewsFeedSource =
   | 'fallback_no_api_key'
   | 'fallback_error'
   | 'empty_live'
-  | 'fallback_gemini';
+  | 'fallback_gemini'
+  | 'curated';
 
 export type NewsFeedScope = 'All' | 'Global' | 'Domestic' | 'Sector-wise';
 
