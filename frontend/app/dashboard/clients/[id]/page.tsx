@@ -1,19 +1,19 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { FormEvent, useCallback, useEffect, useMemo, useState } from 'react';
 import { useParams } from 'next/navigation';
 import { getClient, Client } from '@/lib/api/clients';
+import { createInvestment, type SimpleInvestmentCategory } from '@/lib/api/investments';
 import { apiClient } from '@/lib/api/client';
 import { getClientHistory, type PortfolioSnapshot } from '@/lib/api/portfolio-history';
 import Link from 'next/link';
-import { User, Briefcase, Send, Shield, ArrowLeft } from 'lucide-react';
+import { User, Briefcase, Send, Shield, ArrowLeft, Plus } from 'lucide-react';
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip,
   ResponsiveContainer,
 } from 'recharts';
 import { toast } from 'sonner';
 import Breadcrumb from '@/components/layout/Breadcrumb';
-import AssetCard from '@/components/portfolio/AssetCard';
 import AssetVault from '@/components/portfolio/AssetVault';
 import StressTestModal from '@/components/modals/StressTestModal';
 import { StressScenario, StressTestResult } from '@/lib/api/stress-test';
@@ -59,8 +59,27 @@ export default function ClientDetailPage() {
     status: string;
   } | null>(null);
 
+  const [showAddAssetModal, setShowAddAssetModal] = useState(false);
+  const [addAssetSaving, setAddAssetSaving] = useState(false);
+  const [addAssetError, setAddAssetError] = useState<string | null>(null);
+  const [addAssetForm, setAddAssetForm] = useState({
+    instrument_name: '',
+    value: '',
+    category: 'equity' as SimpleInvestmentCategory,
+  });
+
+  const refreshClientData = useCallback(async () => {
+    if (!id) return;
+    const [c, hist] = await Promise.all([getClient(id), getClientHistory(id)]);
+    setClient(c);
+    setHistoryData(hist);
+    setHistoryLoaded(true);
+  }, [id]);
+
   useEffect(() => {
     if (!id) return;
+    setLoading(true);
+    setError(null);
     getClient(id)
       .then(setClient)
       .catch((err) => setError(err instanceof Error ? err.message : 'Failed to load client'))
@@ -80,6 +99,14 @@ export default function ClientDetailPage() {
   }, [client]);
 
   const canChartHistory = historyLoaded && historyData.length >= 2;
+
+  const holdingsTotal = useMemo(() => {
+    if (!client?.investments?.length) return 0;
+    return client.investments.reduce((s, i) => s + i.quantity * i.current_price, 0);
+  }, [client?.investments]);
+
+  const displayTotalAum =
+    client?.total_aum != null && !Number.isNaN(client.total_aum) ? client.total_aum : holdingsTotal;
 
   // ── Helpers used by the two memos below ──────────────────────────────────
   const _allAssets = client?.investments ?? [];
@@ -134,6 +161,34 @@ export default function ClientDetailPage() {
     }, 18);
     return () => window.clearInterval(timer);
   }, [headerTargetScore]);
+
+  const closeAddAssetModal = () => {
+    if (addAssetSaving) return;
+    setShowAddAssetModal(false);
+    setAddAssetError(null);
+  };
+
+  const handleAddAsset = async (e: FormEvent) => {
+    e.preventDefault();
+    if (!id) return;
+    setAddAssetError(null);
+    setAddAssetSaving(true);
+    try {
+      await createInvestment(id, {
+        instrument_name: addAssetForm.instrument_name.trim(),
+        value: Number(addAssetForm.value),
+        category: addAssetForm.category,
+      });
+      setShowAddAssetModal(false);
+      setAddAssetForm({ instrument_name: '', value: '', category: 'equity' });
+      await refreshClientData();
+      toast.success('Investment added', { description: 'Portfolio and history updated.' });
+    } catch (err) {
+      setAddAssetError(err instanceof Error ? err.message : 'Failed to add investment');
+    } finally {
+      setAddAssetSaving(false);
+    }
+  };
 
   const handleSendAdvisory = async () => {
     if (!id) return;
@@ -369,6 +424,31 @@ export default function ClientDetailPage() {
           </div>
         )}
 
+        <div className="mt-6 flex w-full flex-col gap-4 sm:flex-row sm:items-stretch sm:justify-between">
+          <div className="flex-1 rounded-2xl border-2 border-slate-800 bg-slate-50/80 px-6 py-5">
+            <p className="text-xs font-semibold uppercase tracking-widest text-slate-500">Total AUM</p>
+            <p className="mt-2 font-mono text-3xl font-bold tracking-tight text-slate-900">
+              {formatInr(displayTotalAum)}
+            </p>
+            <p className="mt-1 text-xs text-slate-500">
+              Across all holdings{client!.investments?.length ? ` · ${client!.investments.length} line item(s)` : ''}
+            </p>
+          </div>
+          <div className="flex items-end sm:items-center">
+            <button
+              type="button"
+              onClick={() => {
+                setAddAssetError(null);
+                setShowAddAssetModal(true);
+              }}
+              className="inline-flex w-full items-center justify-center gap-2 rounded-xl border-2 border-slate-800 bg-white px-5 py-3 text-sm font-semibold text-slate-800 shadow-sm hover:bg-slate-50 sm:w-auto"
+            >
+              <Plus className="h-4 w-4" />
+              Add asset
+            </button>
+          </div>
+        </div>
+
         {/* Asset Vault — replaces the 4-column grid */}
         <AssetVault
           investments={client!.investments ?? []}
@@ -459,6 +539,88 @@ export default function ClientDetailPage() {
           </div>
         </div>
       )}
+      {showAddAssetModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="w-full max-w-md rounded-2xl border-2 border-slate-800 bg-white p-6 shadow-xl">
+            <div className="mb-4 flex items-center justify-between">
+              <h2 className="text-lg font-semibold">Add asset</h2>
+              <button
+                type="button"
+                onClick={closeAddAssetModal}
+                className="rounded-md border border-slate-300 px-2 py-1 text-xs text-slate-600 hover:bg-slate-50"
+              >
+                Close
+              </button>
+            </div>
+            <form onSubmit={handleAddAsset} className="space-y-4">
+              <div>
+                <label className="mb-1 block text-xs font-medium text-slate-600">Name</label>
+                <input
+                  required
+                  placeholder="e.g. HDFC Top 100"
+                  value={addAssetForm.instrument_name}
+                  onChange={(e) => setAddAssetForm((p) => ({ ...p, instrument_name: e.target.value }))}
+                  className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm focus:border-slate-800 focus:outline-none"
+                />
+              </div>
+              <div>
+                <label className="mb-1 block text-xs font-medium text-slate-600">Value (INR)</label>
+                <input
+                  required
+                  type="number"
+                  min={0.01}
+                  step="0.01"
+                  placeholder="Amount"
+                  value={addAssetForm.value}
+                  onChange={(e) => setAddAssetForm((p) => ({ ...p, value: e.target.value }))}
+                  className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm focus:border-slate-800 focus:outline-none"
+                />
+              </div>
+              <div>
+                <label className="mb-1 block text-xs font-medium text-slate-600">Category</label>
+                <select
+                  value={addAssetForm.category}
+                  onChange={(e) =>
+                    setAddAssetForm((p) => ({
+                      ...p,
+                      category: e.target.value as SimpleInvestmentCategory,
+                    }))
+                  }
+                  className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm focus:border-slate-800 focus:outline-none"
+                >
+                  <option value="equity">Equity</option>
+                  <option value="debt">Debt</option>
+                  <option value="cash">Cash</option>
+                  <option value="gold">Gold</option>
+                </select>
+              </div>
+              {addAssetError && (
+                <div className="rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+                  {addAssetError}
+                </div>
+              )}
+              <div className="flex justify-end gap-2 pt-1">
+                <button
+                  type="button"
+                  onClick={closeAddAssetModal}
+                  disabled={addAssetSaving}
+                  className="rounded-xl border border-slate-300 px-4 py-2 text-sm text-slate-600 hover:bg-slate-50 disabled:opacity-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={addAssetSaving}
+                  className="rounded-xl bg-slate-800 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-700 disabled:opacity-50"
+                >
+                  {addAssetSaving ? 'Saving…' : 'Save'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
       <StressTestModal
         open={stressOpen}
         onClose={() => setStressOpen(false)}

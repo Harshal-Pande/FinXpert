@@ -29,6 +29,8 @@ model Client {
   insurance_coverage Float?
   risk_profile       String?
   investment_horizon String?
+  /// Sum of investment total_value; kept in sync by AssetsService.
+  total_aum          Float    @default(0)
   created_at        DateTime @default(now())
   updated_at        DateTime @updatedAt
   advisor           Advisor  @relation(fields: [advisor_id], references: [id], onDelete: Cascade)
@@ -51,6 +53,7 @@ enum InvestmentCategory {
   MUTUAL_FUND
   CRYPTO
   CASH
+  GOLD
 }
 
 model Investment {

@@ -113,6 +113,8 @@ async function main() {
       };
     });
 
+    const totalAumSeed = investments.reduce((s, i) => s + i.total_value, 0);
+
     const client = await prisma.client.create({
       data: {
         advisor_id: advisor.id,
@@ -125,6 +127,7 @@ async function main() {
         investment_horizon: data.investment_horizon,
         emergency_fund: data.emergency_fund,
         insurance_coverage: data.insurance_coverage,
+        total_aum: totalAumSeed,
         investments: {
           create: investments,
         },
@@ -206,6 +209,15 @@ async function main() {
           });
         }
       }
+
+      const ishitaAum = await prisma.investment.aggregate({
+        where: { client_id: client.id },
+        _sum: { total_value: true },
+      });
+      await prisma.client.update({
+        where: { id: client.id },
+        data: { total_aum: ishitaAum._sum.total_value ?? 0 },
+      });
     }
   }
 

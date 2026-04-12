@@ -6,9 +6,12 @@ export { login, type LoginPayload, type LoginResponse } from './auth';
 export {
   listClients,
   getClient,
+  createClient,
   type Client,
   type ListClientsResponse,
+  type CreateClientPayload,
 } from './clients';
+export { createInvestment, type CreateInvestmentPayload, type SimpleInvestmentCategory } from './investments';
 export { getUpcomingCompliance, type ComplianceItem } from './compliance';
 export {
   getMarketNewsFeed,

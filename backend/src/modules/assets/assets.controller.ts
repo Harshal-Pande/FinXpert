@@ -11,7 +11,9 @@ import {
 import { AssetsService } from './assets.service';
 import { CreateAssetDto } from './dto/create-asset.dto';
 import { UpdateAssetDto } from './dto/update-asset.dto';
+import { Public } from '../../common/decorators/public.decorator';
 
+@Public()
 @Controller('clients/:clientId/investments')
 export class AssetsController {
   constructor(private readonly assetsService: AssetsService) {}

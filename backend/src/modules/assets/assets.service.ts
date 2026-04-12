@@ -8,11 +8,15 @@ function normalizeInvestmentType(value: 'Stock' | 'Crypto' | 'Debt' | 'Mutual Fu
   return value === 'Mutual Fund' ? 'Mutual_Fund' : value;
 }
 
-function defaultCategoryFromType(type: InvestmentType): InvestmentCategory {
-  if (type === 'Stock') return 'STOCK';
-  if (type === 'Crypto') return 'CRYPTO';
-  if (type === 'Mutual_Fund') return 'MUTUAL_FUND';
-  return 'CASH';
+function mapSimpleCategory(
+  raw: string,
+): { investment_type: InvestmentType; category: InvestmentCategory } {
+  const c = raw.toLowerCase();
+  if (c === 'equity') return { investment_type: 'Stock', category: 'STOCK' };
+  if (c === 'debt') return { investment_type: 'Debt', category: 'MUTUAL_FUND' };
+  if (c === 'cash') return { investment_type: 'Debt', category: 'CASH' };
+  if (c === 'gold') return { investment_type: 'Mutual_Fund', category: 'GOLD' };
+  return { investment_type: 'Stock', category: 'STOCK' };
 }
 
 @Injectable()
@@ -48,26 +52,53 @@ export class AssetsService {
     };
   }
 
+  private async recalcClientAumAndSnapshot(clientId: string): Promise<number> {
+    const agg = await this.prisma.investment.aggregate({
+      where: { client_id: clientId },
+      _sum: { total_value: true },
+    });
+    const total = agg._sum.total_value ?? 0;
+
+    await this.prisma.$transaction([
+      this.prisma.client.update({
+        where: { id: clientId },
+        data: { total_aum: total },
+      }),
+      this.prisma.portfolioSnapshot.create({
+        data: {
+          client_id: clientId,
+          total_value: total,
+        },
+      }),
+    ]);
+
+    return total;
+  }
+
   async create(clientId: string, dto: CreateAssetDto) {
-    const normalizedType = normalizeInvestmentType(dto.investment_type);
-    const avgBuyPrice = dto.avg_buy_price ?? dto.buy_rate;
-    const currentPrice = dto.current_price ?? avgBuyPrice;
-    const totalValue = dto.quantity * currentPrice;
+    await this.prisma.client.findUniqueOrThrow({ where: { id: clientId } });
+
+    const { investment_type, category } = mapSimpleCategory(dto.category);
+    const value = dto.value;
+    const boughtAt = dto.bought_at ? new Date(dto.bought_at) : new Date();
 
     const created = await this.prisma.investment.create({
       data: {
         client_id: clientId,
-        investment_type: normalizedType,
-        category: dto.category ?? defaultCategoryFromType(normalizedType),
-        instrument_name: dto.instrument_name,
-        quantity: dto.quantity,
-        avg_buy_price: avgBuyPrice,
-        current_price: currentPrice,
-        buy_rate: dto.buy_rate,
-        total_value: totalValue,
-        bought_at: new Date(dto.bought_at),
+        investment_type,
+        category,
+        instrument_name: dto.instrument_name.trim(),
+        quantity: 1,
+        avg_buy_price: value,
+        current_price: value,
+        buy_rate: value,
+        total_value: value,
+        bought_at: boughtAt,
       },
     });
+
+    await this.recalcClientAumAndSnapshot(clientId);
+
     return { ...created, performance: this.getPerformanceData(created) };
   }
 
@@ -113,11 +144,14 @@ export class AssetsService {
         bought_at: dto.bought_at ? new Date(dto.bought_at) : undefined,
       },
     });
+    await this.recalcClientAumAndSnapshot(clientId);
     return { ...updated, performance: this.getPerformanceData(updated) };
   }
 
   async remove(clientId: string, id: string) {
     await this.findOne(clientId, id);
-    return this.prisma.investment.delete({ where: { id } });
+    const deleted = await this.prisma.investment.delete({ where: { id } });
+    await this.recalcClientAumAndSnapshot(clientId);
+    return deleted;
   }
 }

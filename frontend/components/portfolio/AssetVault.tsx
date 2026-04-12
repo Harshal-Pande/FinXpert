@@ -42,6 +42,7 @@ const CATEGORY_COLORS: Record<string, string> = {
   MUTUAL_FUND: 'bg-emerald-50 text-emerald-700',
   CASH:        'bg-slate-100 text-slate-500',
   DEBT:        'bg-blue-50   text-blue-700',
+  GOLD:        'bg-yellow-50 text-yellow-800',
 };
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────

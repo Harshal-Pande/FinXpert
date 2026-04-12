@@ -3,7 +3,7 @@ import { apiClient } from './client';
 export interface Investment {
   id: string;
   investment_type: 'Stock' | 'Crypto' | 'Debt' | 'Mutual_Fund';
-  category: 'STOCK' | 'MUTUAL_FUND' | 'CRYPTO' | 'CASH';
+  category: 'STOCK' | 'MUTUAL_FUND' | 'CRYPTO' | 'CASH' | 'GOLD';
   instrument_name: string;
   quantity: number;
   avg_buy_price: number;
@@ -21,6 +21,8 @@ export interface Investment {
 
 export interface Client {
   id: string;
+  /** Sum of holdings; synced when investments change via API. */
+  total_aum?: number;
   name: string;
   age?: number;
   occupation: string;
