@@ -2,6 +2,12 @@ import { Injectable, Logger, Optional } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { AiInsightService } from './ai-insight.service';
+import {
+  armGeminiQuotaCooldown,
+  isGeminiQuotaCooldownActive,
+  isLikelyGeminiQuotaError,
+  logGeminiQuotaThrottled,
+} from './gemini-quota.util';
 
 /** Troy ounces per gram (for XAU USD/oz × USDINR → ₹/g). */
 const GRAMS_PER_TROY_OZ = 31.1034768;
@@ -277,6 +283,9 @@ export class MarketDataService {
 
   private async triggerGeminiFallback(): Promise<NewsArticle[]> {
     if (!this.genAI) return [];
+    if (isGeminiQuotaCooldownActive()) {
+      return [];
+    }
     try {
       const model = this.genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
       const prompt = `Generate the top 5 global financial news headlines for today focusing on market volatility and AI in fintech.
@@ -303,7 +312,12 @@ export class MarketDataService {
         metrics: { accuracy: 0.98, rmse: 0.02, mape: 2.1, mse: 0.0004, mae: 0.015 },
       }));
     } catch (err) {
-      this.logger.error('Gemini API fallback failed', err);
+      if (isLikelyGeminiQuotaError(err)) {
+        armGeminiQuotaCooldown();
+        logGeminiQuotaThrottled(this.logger, 'Gemini news fallback');
+      } else {
+        this.logger.warn(`Gemini news fallback failed: ${err instanceof Error ? err.message : err}`);
+      }
       return [];
     }
   }

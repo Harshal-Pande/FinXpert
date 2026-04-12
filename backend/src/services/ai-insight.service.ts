@@ -1,6 +1,12 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { GoogleGenerativeAI } from '@google/generative-ai';
+import {
+  armGeminiQuotaCooldown,
+  isGeminiQuotaCooldownActive,
+  isLikelyGeminiQuotaError,
+  logGeminiQuotaThrottled,
+} from './gemini-quota.util';
 
 export interface MarketInsightAiResponse {
   title: string;
@@ -39,6 +45,9 @@ export class AiInsightService {
     if (!this.genAI) {
       throw new Error('GEMINI_API_KEY is not configured');
     }
+    if (isGeminiQuotaCooldownActive()) {
+      throw new Error('Gemini is temporarily unavailable (API quota cooldown).');
+    }
 
     const context = data ? `Additional context: ${JSON.stringify(data)}` : '';
     const prompt = `You are a financial analyst. Analyze this news and return a JSON object ONLY. 
@@ -65,6 +74,11 @@ export class AiInsightService {
         return JSON.parse(jsonMatch[0]) as MarketInsightAiResponse;
       } catch (err) {
         lastError = err;
+        if (isLikelyGeminiQuotaError(err)) {
+          armGeminiQuotaCooldown();
+          logGeminiQuotaThrottled(this.logger, 'Market insight');
+          break;
+        }
         this.logger.warn(`Model ${modelName} failed or not found, trying next...`);
       }
     }
@@ -79,6 +93,9 @@ export class AiInsightService {
   async getLiveMarketRates(): Promise<LiveMarketRate[]> {
     if (!this.genAI) {
       throw new Error('GEMINI_API_KEY is not configured');
+    }
+    if (isGeminiQuotaCooldownActive()) {
+      return [];
     }
 
     const now = new Date();
@@ -110,6 +127,7 @@ export class AiInsightService {
       { name: 'gemini-1.5-flash', useTools: false },
     ];
 
+    let stoppedForQuota = false;
     for (const entry of modelsToTry) {
       try {
         const model = this.genAI.getGenerativeModel({
@@ -119,17 +137,25 @@ export class AiInsightService {
 
         const result = await model.generateContent(prompt);
         const text = result.response.text();
-        
+
         const jsonMatch = text.match(/\[[\s\S]*\]/);
         if (!jsonMatch) continue;
-        
+
         return JSON.parse(jsonMatch[0]) as LiveMarketRate[];
       } catch (err) {
-        this.logger.warn(`Grounding check with ${entry.name} (tools:${entry.useTools}) failed`);
+        if (isLikelyGeminiQuotaError(err)) {
+          armGeminiQuotaCooldown();
+          logGeminiQuotaThrottled(this.logger, 'Live market rates (Gemini)');
+          stoppedForQuota = true;
+          break;
+        }
+        this.logger.debug(`Grounding check with ${entry.name} (tools:${entry.useTools}) failed`);
       }
     }
 
-    this.logger.error('All Gemini attempts failed for live market rates');
+    if (!stoppedForQuota) {
+      this.logger.debug('Live market rates: no Gemini JSON; using Yahoo-based indices.');
+    }
     return [];
   }
 }
