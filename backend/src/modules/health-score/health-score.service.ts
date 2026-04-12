@@ -1,4 +1,4 @@
-﻿import { Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../database/prisma.service';
 import { HealthScoreWeightsDto } from './dto/health-score-weights.dto';
 import { FormulaStep } from './health-score-formula.service';
