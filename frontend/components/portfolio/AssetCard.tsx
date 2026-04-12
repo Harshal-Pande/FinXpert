@@ -10,9 +10,9 @@ type Props = {
   medicalShockDeduction?: number;
 };
 
-/** One cost basis for P&amp;L: prefer avg_buy_price, else buy_rate (matches backend AssetsService). */
+/** One cost basis for P&amp;L: prefer buyPrice, else buy_rate (matches backend AssetsService). */
 function unitCost(inv: Investment): number {
-  const a = inv.avg_buy_price;
+  const a = inv.buyPrice;
   if (a != null && a > 0) return a;
   return inv.buy_rate > 0 ? inv.buy_rate : 0;
 }
@@ -28,7 +28,7 @@ function fallbackPerformance(investment: Investment) {
   }
   const cost = unitCost(investment);
   const invested_amount = investment.quantity * cost;
-  const current_value = investment.quantity * investment.current_price;
+  const current_value = investment.quantity * investment.cmp;
   const absolute_pnl = current_value - invested_amount;
   const pnl_percentage = invested_amount > 0 ? (absolute_pnl / invested_amount) * 100 : 0;
   return { invested_amount, current_value, absolute_pnl, pnl_percentage };
@@ -51,9 +51,9 @@ export default function AssetCard({
 }: Props) {
   const perf = investment.performance ?? fallbackPerformance(investment);
   const cost = unitCost(investment);
-  const absoluteReturn = (investment.current_price - cost) * investment.quantity;
+  const absoluteReturn = (investment.cmp - cost) * investment.quantity;
   const returnPct =
-    cost > 0 ? ((investment.current_price - cost) / cost) * 100 : 0;
+    cost > 0 ? ((investment.cmp - cost) / cost) * 100 : 0;
   const marketValue = perf.current_value;
   const stressedMarketValue =
     activeSimulation === 'MARKET_MELTDOWN'
@@ -82,7 +82,7 @@ export default function AssetCard({
         </span>
       </div>
       <p className="mt-1 text-xs text-slate-500">
-        Qty: {investment.quantity} | Avg: {investment.avg_buy_price.toFixed(2)} | CMP: {investment.current_price.toFixed(2)}
+        Qty: {investment.quantity} | Avg: {investment.buyPrice.toFixed(2)} | CMP: {investment.cmp.toFixed(2)}
       </p>
       {investment.category !== 'CASH' && (
         <div className="mt-2">

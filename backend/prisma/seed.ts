@@ -105,8 +105,9 @@ async function main() {
         category: mapCategory(type),
         instrument_name: item.instrument_name,
         quantity,
-        avg_buy_price: buyRate,
-        current_price: currentPrice,
+        buyPrice: buyRate,
+        totalCost: quantity * buyRate,
+        cmp: currentPrice,
         buy_rate: buyRate,
         total_value: quantity * currentPrice,
         bought_at: new Date(item.bought_at),
@@ -141,26 +142,26 @@ async function main() {
         {
           instrument_name: 'Nykaa',
           quantity: 400,
-          avg_buy_price: 155,
-          current_price: 178,
+          buyPrice: 155,
+          cmp: 178,
         },
         {
           instrument_name: 'Zomato',
           quantity: 800,
-          avg_buy_price: 195,
-          current_price: 182,
+          buyPrice: 195,
+          cmp: 182,
         },
         {
           instrument_name: 'Bitcoin',
           quantity: 0.12,
-          avg_buy_price: 5_500_000,
-          current_price: 6_200_000,
+          buyPrice: 5_500_000,
+          cmp: 6_200_000,
         },
         {
           instrument_name: 'HDFC MF',
           quantity: 500,
-          avg_buy_price: 120,
-          current_price: 145,
+          buyPrice: 120,
+          cmp: 145,
         },
       ] as const;
 
@@ -172,10 +173,11 @@ async function main() {
           },
           data: {
             quantity: item.quantity,
-            avg_buy_price: item.avg_buy_price,
-            current_price: item.current_price,
-            buy_rate: item.avg_buy_price,
-            total_value: item.quantity * item.current_price,
+            buyPrice: item.buyPrice,
+            totalCost: item.quantity * item.buyPrice,
+            cmp: item.cmp,
+            buy_rate: item.buyPrice,
+            total_value: item.quantity * item.cmp,
           },
         });
 
@@ -200,10 +202,11 @@ async function main() {
               category,
               instrument_name: item.instrument_name,
               quantity: item.quantity,
-              avg_buy_price: item.avg_buy_price,
-              current_price: item.current_price,
-              buy_rate: item.avg_buy_price,
-              total_value: item.quantity * item.current_price,
+              buyPrice: item.buyPrice,
+              totalCost: item.quantity * item.buyPrice,
+              cmp: item.cmp,
+              buy_rate: item.buyPrice,
+              total_value: item.quantity * item.cmp,
               bought_at: new Date(),
             },
           });
@@ -302,51 +305,54 @@ async function main() {
     }
   }
 
-  // 4. Seed 6-month Portfolio Snapshots (Oct 2024 – Mar 2025)
-  // Delete existing snapshots for this advisor's clients first (idempotent)
-  await prisma.portfolioSnapshot.deleteMany({
+  // 4. Seed 15-day PortfolioHistory checkpoints (~6 months, 12 points)
+  await prisma.portfolioHistory.deleteMany({
     where: { client: { advisor_id: advisor.id } },
   });
 
-  // Hand-tuned monthly values for key clients (in INR)
-  const NAMED_CURVES: Record<string, number[]> = {
-    'Aditi Rao':  [7_500_000, 7_800_000, 8_200_000, 8_050_000, 8_600_000, 9_100_000],
-    'Ishita Sen': [4_200_000, 4_500_000, 4_350_000, 4_700_000, 4_900_000, 5_300_000],
+  const NAMED_END_AUM: Record<string, number> = {
+    'Aditi Rao': 9_100_000,
+    'Ishita Sen': 5_300_000,
   };
 
-  const MONTHS = [
-    new Date('2024-10-01'),
-    new Date('2024-11-01'),
-    new Date('2024-12-01'),
-    new Date('2025-01-01'),
-    new Date('2025-02-01'),
-    new Date('2025-03-01'),
-  ];
+  const startAnchor = new Date();
+  startAnchor.setMonth(startAnchor.getMonth() - 6);
 
   for (const { id: clientId, name } of createdClients) {
-    let values: number[];
+    const endAum =
+      NAMED_END_AUM[name] ??
+      (await prisma.investment.aggregate({
+        where: { client_id: clientId },
+        _sum: { total_value: true },
+      }))._sum.total_value ??
+      1;
 
-    if (NAMED_CURVES[name]) {
-      values = NAMED_CURVES[name];
-    } else {
-      // Auto-generate: start from a random base, apply ±5% monthly drift
-      let base = 3_000_000 + Math.random() * 6_000_000;
-      values = MONTHS.map(() => {
-        base = base * (1 + (Math.random() * 0.1 - 0.03)); // -3% to +7%
-        return Math.round(base);
-      });
+    const n = 12;
+    const growthFactors = Array.from({ length: n - 1 }, () => 1.02 + Math.random() * 0.01);
+    const product = growthFactors.reduce((a, b) => a * b, 1);
+    let v = endAum / product;
+
+    const rows: { client_id: string; date: Date; total_aum: number }[] = [];
+    for (let i = 0; i < n; i++) {
+      const d = new Date(startAnchor);
+      d.setDate(d.getDate() + i * 15);
+      rows.push({ client_id: clientId, date: d, total_aum: Math.round(v) });
+      if (i < n - 1) v *= growthFactors[i]!;
     }
+    rows[n - 1]!.total_aum = Math.round(endAum);
 
-    const snapshots = MONTHS.map((date, i) => ({
-      client_id: clientId,
-      total_value: values[i],
-      date,
-    }));
-
-    await prisma.portfolioSnapshot.createMany({ data: snapshots });
+    await prisma.portfolioHistory.createMany({
+      data: rows.map((r) => ({
+        client_id: r.client_id,
+        date: r.date,
+        total_aum: r.total_aum,
+      })),
+    });
   }
 
-  console.log(`✅ Created portfolio snapshots for ${createdClients.length} clients (6 months each)`);
+  console.log(
+    `✅ Created portfolio history (12 × 15-day checkpoints) for ${createdClients.length} clients`,
+  );
 }
 
 main()

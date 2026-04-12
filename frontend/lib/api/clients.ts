@@ -6,8 +6,9 @@ export interface Investment {
   category: 'STOCK' | 'MUTUAL_FUND' | 'CRYPTO' | 'CASH' | 'GOLD';
   instrument_name: string;
   quantity: number;
-  avg_buy_price: number;
-  current_price: number;
+  buyPrice: number;
+  totalCost: number;
+  cmp: number;
   buy_rate: number;
   total_value: number;
   bought_at: string;

@@ -1,15 +1,20 @@
 'use client';
 
-import { FormEvent, useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useParams } from 'next/navigation';
 import { getClient, Client } from '@/lib/api/clients';
-import { createInvestment, type SimpleInvestmentCategory } from '@/lib/api/investments';
 import { apiClient } from '@/lib/api/client';
-import { getClientHistory, type PortfolioSnapshot } from '@/lib/api/portfolio-history';
+import { getClientHistory, type PortfolioHistoryPoint } from '@/lib/api/portfolio-history';
+import { createInvestment, type SimpleInvestmentCategory } from '@/lib/api/investments';
 import Link from 'next/link';
 import { User, Briefcase, Send, Shield, ArrowLeft, Plus } from 'lucide-react';
 import {
-  AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip,
+  AreaChart,
+  Area,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
   ResponsiveContainer,
 } from 'recharts';
 import { toast } from 'sonner';
@@ -26,16 +31,6 @@ function getRiskBadgeStyles(riskProfile: string): string {
   return 'bg-slate-100 text-slate-600';
 }
 
-function formatInr(value: number): string {
-  return new Intl.NumberFormat('en-IN', {
-    style: 'currency',
-    currency: 'INR',
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 0,
-  }).format(value ?? 0);
-}
-
-
 export default function ClientDetailPage() {
   const { id } = useParams<{ id: string }>();
   const [client, setClient] = useState<Client | null>(null);
@@ -47,10 +42,18 @@ export default function ClientDetailPage() {
   const [activeSimulation, setActiveSimulation] = useState<StressScenario | null>(null);
   const [stressedScore, setStressedScore] = useState<number | null>(null);
   const [displayedScore, setDisplayedScore] = useState(0);
-  const [historyData, setHistoryData] = useState<PortfolioSnapshot[]>([]);
-  const [historyLoaded, setHistoryLoaded] = useState(false);
+  const [historyData, setHistoryData] = useState<PortfolioHistoryPoint[]>([]);
 
-  // Advisory
+  const [showAddAssetModal, setShowAddAssetModal] = useState(false);
+  const [addAssetSaving, setAddAssetSaving] = useState(false);
+  const [addAssetError, setAddAssetError] = useState<string | null>(null);
+  const [addAssetForm, setAddAssetForm] = useState({
+    instrument_name: '',
+    category: 'equity' as SimpleInvestmentCategory,
+    price: '',
+    quantity: '',
+  });
+
   const [sendingAdvisory, setSendingAdvisory] = useState(false);
   const [advisoryResult, setAdvisoryResult] = useState<{
     subject: string;
@@ -59,56 +62,31 @@ export default function ClientDetailPage() {
     status: string;
   } | null>(null);
 
-  const [showAddAssetModal, setShowAddAssetModal] = useState(false);
-  const [addAssetSaving, setAddAssetSaving] = useState(false);
-  const [addAssetError, setAddAssetError] = useState<string | null>(null);
-  const [addAssetForm, setAddAssetForm] = useState({
-    instrument_name: '',
-    value: '',
-    category: 'equity' as SimpleInvestmentCategory,
-  });
-
-  const refreshClientData = useCallback(async () => {
+  const reloadClient = useCallback(async () => {
     if (!id) return;
-    const [c, hist] = await Promise.all([getClient(id), getClientHistory(id)]);
+    const c = await getClient(id);
     setClient(c);
-    setHistoryData(hist);
-    setHistoryLoaded(true);
+  }, [id]);
+
+  const reloadHistory = useCallback(async () => {
+    if (!id) return;
+    const h = await getClientHistory(id);
+    setHistoryData(h);
   }, [id]);
 
   useEffect(() => {
     if (!id) return;
     setLoading(true);
-    setError(null);
-    getClient(id)
-      .then(setClient)
+    Promise.all([reloadClient(), reloadHistory()])
       .catch((err) => setError(err instanceof Error ? err.message : 'Failed to load client'))
       .finally(() => setLoading(false));
-    setHistoryLoaded(false);
-    getClientHistory(id)
-      .then(setHistoryData)
-      .catch(() => setHistoryData([]))
-      .finally(() => setHistoryLoaded(true));
-  }, [id]);
+  }, [id, reloadClient, reloadHistory]);
 
-  // Single source of truth: calculatedHealthScore is the live normalized
-  // peer-ranked score returned by both GET /clients and GET /clients/:id.
   const realHealthScore = useMemo(() => {
     if (!client) return 0;
     return client.calculatedHealthScore ?? 0;
   }, [client]);
 
-  const canChartHistory = historyLoaded && historyData.length >= 2;
-
-  const holdingsTotal = useMemo(() => {
-    if (!client?.investments?.length) return 0;
-    return client.investments.reduce((s, i) => s + i.quantity * i.current_price, 0);
-  }, [client?.investments]);
-
-  const displayTotalAum =
-    client?.total_aum != null && !Number.isNaN(client.total_aum) ? client.total_aum : holdingsTotal;
-
-  // ── Helpers used by the two memos below ──────────────────────────────────
   const _allAssets = client?.investments ?? [];
   const _debtAssets = _allAssets.filter((a) => a.investment_type === 'Debt');
   const _mutualFundAssets = _allAssets.filter((a) => a.investment_type === 'Mutual_Fund');
@@ -117,7 +95,7 @@ export default function ClientDetailPage() {
     const deductions: Record<string, number> = {};
     let remaining = totalDeduction;
     for (const asset of assets) {
-      const value = asset.quantity * asset.current_price;
+      const value = asset.quantity * asset.cmp;
       const applied = Math.min(value, remaining);
       deductions[asset.id] = applied;
       remaining -= applied;
@@ -126,7 +104,6 @@ export default function ClientDetailPage() {
     return { deductions, remaining };
   };
 
-  // MUST be declared before any early return so hook order is stable.
   const debtAllocation = useMemo(() => {
     if (activeSimulation !== 'MEDICAL_SHOCK') return { deductions: {} as Record<string, number>, remaining: 0 };
     return _allocateDeduction(_debtAssets, 500_000);
@@ -138,9 +115,6 @@ export default function ClientDetailPage() {
     return _allocateDeduction(_mutualFundAssets, Math.max(0, debtAllocation.remaining));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [client, activeSimulation, debtAllocation.remaining]);
-
-  // Health score is authoritative from the DB via getClient().
-  // No local recalculation — that was overwriting the correct normalized score.
 
   const headerTargetScore = activeSimulation ? stressedScore ?? realHealthScore : realHealthScore;
 
@@ -161,34 +135,6 @@ export default function ClientDetailPage() {
     }, 18);
     return () => window.clearInterval(timer);
   }, [headerTargetScore]);
-
-  const closeAddAssetModal = () => {
-    if (addAssetSaving) return;
-    setShowAddAssetModal(false);
-    setAddAssetError(null);
-  };
-
-  const handleAddAsset = async (e: FormEvent) => {
-    e.preventDefault();
-    if (!id) return;
-    setAddAssetError(null);
-    setAddAssetSaving(true);
-    try {
-      await createInvestment(id, {
-        instrument_name: addAssetForm.instrument_name.trim(),
-        value: Number(addAssetForm.value),
-        category: addAssetForm.category,
-      });
-      setShowAddAssetModal(false);
-      setAddAssetForm({ instrument_name: '', value: '', category: 'equity' });
-      await refreshClientData();
-      toast.success('Investment added', { description: 'Portfolio and history updated.' });
-    } catch (err) {
-      setAddAssetError(err instanceof Error ? err.message : 'Failed to add investment');
-    } finally {
-      setAddAssetSaving(false);
-    }
-  };
 
   const handleSendAdvisory = async () => {
     if (!id) return;
@@ -214,12 +160,53 @@ export default function ClientDetailPage() {
     }
   };
 
+  const closeAddAssetModal = () => {
+    setShowAddAssetModal(false);
+    setAddAssetError(null);
+  };
+
+  const handleAddAsset = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!id) return;
+    const price = Number(addAssetForm.price);
+    const quantity = Number(addAssetForm.quantity);
+    if (!addAssetForm.instrument_name.trim() || !Number.isFinite(price) || price <= 0) {
+      setAddAssetError('Enter a valid name and unit price.');
+      return;
+    }
+    if (!Number.isFinite(quantity) || quantity <= 0) {
+      setAddAssetError('Enter a valid quantity.');
+      return;
+    }
+    setAddAssetSaving(true);
+    setAddAssetError(null);
+    try {
+      await createInvestment(id, {
+        instrument_name: addAssetForm.instrument_name.trim(),
+        category: addAssetForm.category,
+        price,
+        quantity,
+      });
+      toast.success('Asset added', { description: 'CMP resolved via Gemini where available.' });
+      setAddAssetForm({ instrument_name: '', category: 'equity', price: '', quantity: '' });
+      closeAddAssetModal();
+      await reloadClient();
+    } catch (err) {
+      setAddAssetError(err instanceof Error ? err.message : 'Failed to add asset');
+    } finally {
+      setAddAssetSaving(false);
+    }
+  };
+
   if (!id || (!loading && !client)) {
     return (
       <div className="mx-auto max-w-2xl px-6 py-20 text-center">
         <h2 className="text-xl font-bold text-slate-900">Client Not Found</h2>
         <p className="mt-2 text-slate-600">{error || 'The requested client could not be found.'}</p>
-        <Link href="/dashboard/clients" className="mt-6 inline-flex items-center gap-2 rounded-lg bg-slate-800 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-700">
+        <Link
+          href="/dashboard/clients"
+          className="mt-6 inline-flex items-center gap-2 rounded-lg bg-slate-800 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-700"
+        >
           <ArrowLeft className="h-4 w-4" /> Back to Clients
         </Link>
       </div>
@@ -234,20 +221,13 @@ export default function ClientDetailPage() {
     );
   }
 
-
-
   return (
     <div className="min-h-screen bg-slate-50 p-8 flex justify-center font-sans text-slate-800 relative pb-20">
-
-      {/* Breadcrumb — top-left */}
       <div className="absolute top-6 left-8">
         <Breadcrumb leafLabel={client!.name} />
       </div>
 
-      {/* Main Container */}
       <div className="w-full max-w-5xl border-2 border-slate-800 rounded-3xl p-8 relative flex flex-col items-center bg-white min-h-[600px] mt-8">
-
-        {/* Title over border trick */}
         <div className="absolute -top-4 left-10 bg-white px-2 text-xl font-medium tracking-wide">
           <div className="inline-flex items-center gap-2">
             <span>Client Information</span>
@@ -255,8 +235,6 @@ export default function ClientDetailPage() {
         </div>
 
         <div className="w-full grid grid-cols-1 md:grid-cols-2 gap-6 mt-2">
-
-          {/* Information Block */}
           <div className="border-2 border-slate-800 rounded-3xl p-6 relative flex flex-col justify-center gap-2 min-h-[240px]">
             <div className="absolute top-4 w-full text-center left-0 text-sm font-medium tracking-wide bg-white">
               Information
@@ -274,17 +252,17 @@ export default function ClientDetailPage() {
                 </span>
                 <div className="mt-2">
                   <div className="flex flex-wrap items-center gap-2">
-                    <span className={`inline-flex rounded-md px-3 py-1 text-xs font-bold uppercase tracking-wider ${getRiskBadgeStyles(client!.risk_profile ?? '')}`}>
+                    <span
+                      className={`inline-flex rounded-md px-3 py-1 text-xs font-bold uppercase tracking-wider ${getRiskBadgeStyles(client!.risk_profile ?? '')}`}
+                    >
                       {client!.risk_profile || 'Unknown Risk'}
                     </span>
                     <span
-                      className={`inline-flex rounded-md px-3 py-1 text-xs font-bold uppercase tracking-wider ${activeSimulation ? 'bg-red-100 text-red-700' : 'bg-indigo-100 text-indigo-700'
-                        }`}
+                      className={`inline-flex rounded-md px-3 py-1 text-xs font-bold uppercase tracking-wider ${
+                        activeSimulation ? 'bg-red-100 text-red-700' : 'bg-indigo-100 text-indigo-700'
+                      }`}
                     >
-                      {activeSimulation ? 'Stressed Score' : 'Health Score'}:{' '}
-                      {!activeSimulation && client!.calculatedHealthScore == null
-                        ? '—'
-                        : displayedScore.toFixed(1)}
+                      {activeSimulation ? 'Stressed Score' : 'Health Score'}: {displayedScore.toFixed(1)}
                     </span>
                     <button
                       type="button"
@@ -301,53 +279,14 @@ export default function ClientDetailPage() {
             </div>
           </div>
 
-          {/* Portfolio History Graph Block */}
           <div className="border-2 border-slate-800 rounded-3xl p-6 relative flex flex-col min-h-[240px]">
             <div className="absolute top-4 w-full text-center left-0 text-sm font-medium tracking-wide bg-white">
               Portfolio History
             </div>
             <div className="w-full flex-1 mt-8" style={{ minHeight: 160 }}>
-              {!historyLoaded ? (
-                <div
-                  className="flex h-full w-full items-center justify-center rounded-2xl border-2 border-slate-200 bg-white"
-                  style={{ minHeight: 140 }}
-                  aria-busy
-                >
-                  <div className="h-8 w-8 animate-spin rounded-full border-2 border-slate-300 border-t-slate-700" />
-                </div>
-              ) : !canChartHistory ? (
+              {historyData.length === 0 ? (
                 <div className="flex h-full items-center justify-center">
-                  <div
-                    className="flex w-full flex-col items-center justify-center gap-3 rounded-2xl border-2 border-slate-300 bg-white px-8 py-8 shadow-sm"
-                    style={{ minHeight: 140 }}
-                  >
-                    <div className="flex items-center justify-center rounded-full border border-slate-200 bg-slate-50 p-3">
-                      <svg
-                        xmlns="http://www.w3.org/2000/svg"
-                        width="24"
-                        height="24"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="1.5"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        className="text-slate-400"
-                      >
-                        <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
-                      </svg>
-                    </div>
-                    <p className="text-sm font-medium text-slate-600">
-                      {historyData.length === 0
-                        ? 'No portfolio history yet'
-                        : 'Not enough history to chart'}
-                    </p>
-                    <p className="text-xs text-slate-500 text-center max-w-[260px] leading-relaxed">
-                      {historyData.length === 0
-                        ? 'Trend data will appear after snapshots are recorded for this client.'
-                        : 'At least two snapshots are needed to show a meaningful trend line.'}
-                    </p>
-                  </div>
+                  <p className="text-xs text-slate-400">No history data yet.</p>
                 </div>
               ) : (
                 <ResponsiveContainer width="100%" height={160}>
@@ -360,24 +299,38 @@ export default function ClientDetailPage() {
                     </defs>
                     <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E2E8F0" />
                     <XAxis
-                      dataKey="month"
+                      dataKey="label"
                       axisLine={false}
                       tickLine={false}
-                      tick={{ fontSize: 10, fill: '#94A3B8' }}
+                      tick={{ fontSize: 9, fill: '#94A3B8' }}
+                      interval={0}
+                      angle={-35}
+                      textAnchor="end"
+                      height={48}
                     />
                     <YAxis
                       axisLine={false}
                       tickLine={false}
                       tick={{ fontSize: 9, fill: '#94A3B8' }}
                       tickFormatter={(v) =>
-                        new Intl.NumberFormat('en-IN', { notation: 'compact', maximumFractionDigits: 1 }).format(v)
+                        new Intl.NumberFormat('en-IN', {
+                          notation: 'compact',
+                          maximumFractionDigits: 1,
+                        }).format(v)
                       }
                     />
                     <Tooltip
                       formatter={(value: number) => [
-                        new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(value),
+                        new Intl.NumberFormat('en-IN', {
+                          style: 'currency',
+                          currency: 'INR',
+                          maximumFractionDigits: 0,
+                        }).format(value),
                         'Portfolio Value',
                       ]}
+                      labelFormatter={(_, payload) =>
+                        payload?.[0]?.payload?.label ?? payload?.[0]?.payload?.date ?? ''
+                      }
                       contentStyle={{ fontSize: 11, borderRadius: 8, border: '1px solid #E2E8F0' }}
                     />
                     <Area
@@ -396,60 +349,46 @@ export default function ClientDetailPage() {
           </div>
         </div>
 
-        {/* View Mode Toggle */}
-        <div className="mt-6 inline-flex rounded-xl border border-slate-300 bg-slate-100 p-1">
+        <div className="mt-6 flex w-full flex-wrap items-center justify-center gap-3">
+          <div className="inline-flex rounded-xl border border-slate-300 bg-slate-100 p-1">
+            <button
+              type="button"
+              aria-label="Show total holdings"
+              onClick={() => setViewMode('VALUE')}
+              className={`rounded-lg px-3 py-1 text-xs font-semibold ${viewMode === 'VALUE' ? 'bg-slate-800 text-white' : 'text-slate-700'}`}
+            >
+              Total Holdings
+            </button>
+            <button
+              type="button"
+              aria-label="Show total returns"
+              onClick={() => setViewMode('RETURNS')}
+              className={`rounded-lg px-3 py-1 text-xs font-semibold ${viewMode === 'RETURNS' ? 'bg-slate-800 text-white' : 'text-slate-700'}`}
+            >
+              Total Returns
+            </button>
+          </div>
           <button
             type="button"
-            aria-label="Show total holdings"
-            onClick={() => setViewMode('VALUE')}
-            className={`rounded-lg px-3 py-1 text-xs font-semibold ${viewMode === 'VALUE' ? 'bg-slate-800 text-white' : 'text-slate-700'}`}
+            onClick={() => {
+              setAddAssetError(null);
+              setShowAddAssetModal(true);
+            }}
+            className="inline-flex items-center gap-2 rounded-xl border-2 border-slate-800 bg-white px-4 py-2 text-xs font-semibold text-slate-800 hover:bg-slate-50"
           >
-            Total Holdings
-          </button>
-          <button
-            type="button"
-            aria-label="Show total returns"
-            onClick={() => setViewMode('RETURNS')}
-            className={`rounded-lg px-3 py-1 text-xs font-semibold ${viewMode === 'RETURNS' ? 'bg-slate-800 text-white' : 'text-slate-700'}`}
-          >
-            Total Returns
+            <Plus className="h-4 w-4" />
+            Add asset
           </button>
         </div>
 
         {activeSimulation && (
           <div className="mt-4 w-full">
             <span className="inline-flex items-center rounded-md bg-red-100 px-3 py-1 text-xs font-bold uppercase tracking-wider text-red-700">
-              🚨 Stress Simulation Active
+              Stress simulation active
             </span>
           </div>
         )}
 
-        <div className="mt-6 flex w-full flex-col gap-4 sm:flex-row sm:items-stretch sm:justify-between">
-          <div className="flex-1 rounded-2xl border-2 border-slate-800 bg-slate-50/80 px-6 py-5">
-            <p className="text-xs font-semibold uppercase tracking-widest text-slate-500">Total AUM</p>
-            <p className="mt-2 font-mono text-3xl font-bold tracking-tight text-slate-900">
-              {formatInr(displayTotalAum)}
-            </p>
-            <p className="mt-1 text-xs text-slate-500">
-              Across all holdings{client!.investments?.length ? ` · ${client!.investments.length} line item(s)` : ''}
-            </p>
-          </div>
-          <div className="flex items-end sm:items-center">
-            <button
-              type="button"
-              onClick={() => {
-                setAddAssetError(null);
-                setShowAddAssetModal(true);
-              }}
-              className="inline-flex w-full items-center justify-center gap-2 rounded-xl border-2 border-slate-800 bg-white px-5 py-3 text-sm font-semibold text-slate-800 shadow-sm hover:bg-slate-50 sm:w-auto"
-            >
-              <Plus className="h-4 w-4" />
-              Add asset
-            </button>
-          </div>
-        </div>
-
-        {/* Asset Vault — replaces the 4-column grid */}
         <AssetVault
           investments={client!.investments ?? []}
           viewMode={viewMode}
@@ -458,7 +397,6 @@ export default function ClientDetailPage() {
           mfAllocation={mfAllocation}
         />
 
-        {/* Advisory */}
         <div className="w-full border-2 border-slate-800 rounded-3xl p-6 mt-8 relative flex flex-col min-h-[140px]">
           <div className="absolute top-4 w-full text-center left-0 text-sm font-medium tracking-wide bg-white shrink-0 sm:px-4">
             Advisory
@@ -466,8 +404,8 @@ export default function ClientDetailPage() {
 
           <div className="mt-10 space-y-4 px-2 sm:px-4">
             <p className="text-sm text-slate-600 leading-relaxed max-w-2xl">
-              Build a one-page brief from this client&apos;s profile, portfolio, and risk context. Use it for
-              review meetings or follow-up notes—nothing is scheduled or sent automatically.
+              Build a one-page brief from this client&apos;s profile, portfolio, and risk context. Use it for review
+              meetings or follow-up notes; nothing is scheduled or sent automatically.
             </p>
             <div className="flex flex-col sm:flex-row sm:items-center gap-3">
               <button
@@ -480,7 +418,7 @@ export default function ClientDetailPage() {
                 {sendingAdvisory ? 'Generating…' : 'Generate advisory brief'}
               </button>
               {advisoryResult && advisoryResult.status !== 'error' && (
-                <span className="text-xs text-slate-500">Brief generated—see below.</span>
+                <span className="text-xs text-slate-500">Brief generated; see below.</span>
               )}
             </div>
           </div>
@@ -504,9 +442,7 @@ export default function ClientDetailPage() {
               <div className="flex flex-wrap items-center gap-2">
                 <span
                   className={`text-xs font-medium px-2.5 py-1 rounded-full ${
-                    advisoryResult.status === 'error'
-                      ? 'bg-red-50 text-red-700'
-                      : 'bg-emerald-50 text-emerald-700'
+                    advisoryResult.status === 'error' ? 'bg-red-50 text-red-700' : 'bg-emerald-50 text-emerald-700'
                   }`}
                 >
                   {advisoryResult.status === 'error' ? 'Failed' : 'Generated'}
@@ -518,14 +454,12 @@ export default function ClientDetailPage() {
             </div>
           )}
         </div>
-
       </div>
+
       {activeSimulation && (
         <div className="fixed bottom-4 left-1/2 z-40 w-[min(720px,92vw)] -translate-x-1/2 rounded-xl border border-red-300 bg-white/90 p-3 shadow-lg backdrop-blur">
           <div className="flex items-center justify-between gap-4">
-            <p className="text-sm font-semibold text-red-700">
-              🚨 SIMULATION ACTIVE: Showing Stressed Values
-            </p>
+            <p className="text-sm font-semibold text-red-700">Simulation active: showing stressed values</p>
             <button
               type="button"
               onClick={() => {
@@ -539,6 +473,7 @@ export default function ClientDetailPage() {
           </div>
         </div>
       )}
+
       {showAddAssetModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
           <div className="w-full max-w-md rounded-2xl border-2 border-slate-800 bg-white p-6 shadow-xl">
@@ -564,19 +499,6 @@ export default function ClientDetailPage() {
                 />
               </div>
               <div>
-                <label className="mb-1 block text-xs font-medium text-slate-600">Value (INR)</label>
-                <input
-                  required
-                  type="number"
-                  min={0.01}
-                  step="0.01"
-                  placeholder="Amount"
-                  value={addAssetForm.value}
-                  onChange={(e) => setAddAssetForm((p) => ({ ...p, value: e.target.value }))}
-                  className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm focus:border-slate-800 focus:outline-none"
-                />
-              </div>
-              <div>
                 <label className="mb-1 block text-xs font-medium text-slate-600">Category</label>
                 <select
                   value={addAssetForm.category}
@@ -594,10 +516,37 @@ export default function ClientDetailPage() {
                   <option value="gold">Gold</option>
                 </select>
               </div>
-              {addAssetError && (
-                <div className="rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700">
-                  {addAssetError}
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="mb-1 block text-xs font-medium text-slate-600">Price (INR / unit)</label>
+                  <input
+                    required
+                    type="number"
+                    min={0.01}
+                    step="any"
+                    value={addAssetForm.price}
+                    onChange={(e) => setAddAssetForm((p) => ({ ...p, price: e.target.value }))}
+                    className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm focus:border-slate-800 focus:outline-none"
+                  />
                 </div>
+                <div>
+                  <label className="mb-1 block text-xs font-medium text-slate-600">Quantity</label>
+                  <input
+                    required
+                    type="number"
+                    min={0.01}
+                    step="any"
+                    value={addAssetForm.quantity}
+                    onChange={(e) => setAddAssetForm((p) => ({ ...p, quantity: e.target.value }))}
+                    className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm focus:border-slate-800 focus:outline-none"
+                  />
+                </div>
+              </div>
+              <p className="text-[11px] text-slate-500">
+                Total cost = price × quantity. CMP is set from Gemini fuzzy match on the name when possible.
+              </p>
+              {addAssetError && (
+                <div className="rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700">{addAssetError}</div>
               )}
               <div className="flex justify-end gap-2 pt-1">
                 <button
@@ -628,16 +577,10 @@ export default function ClientDetailPage() {
         currentScore={realHealthScore}
         onSimulationSelect={(scenario: StressScenario, result: StressTestResult) => {
           setActiveSimulation(scenario);
-          const maxStressed =
-            realHealthScore >= 0.5 ? realHealthScore - 0.5 : result.stressedScore;
-          const applied = Math.min(result.stressedScore, maxStressed);
-          setStressedScore(Math.max(0, applied));
-          toast.warning(
-            `🚨 ${scenario.replaceAll('_', ' ')} simulation active — showing stressed values`,
-            {
-              description: `Score dropped from ${realHealthScore.toFixed(1)} → ${Math.max(0, applied).toFixed(1)}`,
-            },
-          );
+          setStressedScore(Math.min(result.stressedScore, realHealthScore - 0.5));
+          toast.warning(`Stress test: ${scenario.replaceAll('_', ' ')}`, {
+            description: `Score ${realHealthScore.toFixed(1)} → ${Math.min(result.stressedScore, realHealthScore - 0.5).toFixed(1)}`,
+          });
         }}
       />
     </div>

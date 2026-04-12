@@ -1,4 +1,4 @@
-import { Injectable, Logger, NotFoundException } from '@nestjs/common';
+﻿import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../database/prisma.service';
 import { HealthScoreWeightsDto } from './dto/health-score-weights.dto';
 import { FormulaStep } from './health-score-formula.service';
@@ -176,7 +176,7 @@ export class HealthScoreService {
         category: InvestmentCategory;
         total_value: number;
         buy_rate: number;
-        current_price: number;
+        cmp: number;
         quantity: number;
         instrument_name: string;
       }[];
@@ -193,14 +193,14 @@ export class HealthScoreService {
         if (investment.category === 'STOCK') {
           return {
             ...investment,
-            current_price: investment.current_price * 0.6,
+            cmp: investment.cmp * 0.6,
             total_value: investment.total_value * 0.6,
           };
         }
         if (investment.category === 'CRYPTO') {
           return {
             ...investment,
-            current_price: investment.current_price * 0.3,
+            cmp: investment.cmp * 0.3,
             total_value: investment.total_value * 0.3,
           };
         }
@@ -220,7 +220,7 @@ export class HealthScoreService {
         category: 'CASH' as InvestmentCategory,
         total_value: protectedLiquidity,
         buy_rate: 1,
-        current_price: 1,
+        cmp: 1,
         quantity: protectedLiquidity,
         instrument_name: 'Stress Cash Buffer',
       };
@@ -237,7 +237,7 @@ export class HealthScoreService {
         return {
           ...investment,
           total_value: nextValue,
-          current_price: investment.quantity > 0 ? nextValue / investment.quantity : 0,
+          cmp: investment.quantity > 0 ? nextValue / investment.quantity : 0,
         };
       });
       if (remainingShock > 0) {

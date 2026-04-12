@@ -15,7 +15,8 @@
     "db:push": "prisma db push",
     "db:reset": "prisma migrate reset",
     "db:init": "npx prisma migrate dev --name init_schema && npx prisma db seed",
-    "test:news": "tsx scripts/test-news-api.ts"
+    "test:news": "tsx scripts/test-news-api.ts",
+    "backdate:portfolio": "tsx scripts/backdate-portfolio-history.ts"
   },
   "dependencies": {
     "@google/generative-ai": "^0.24.1",

@@ -47,7 +47,7 @@ const CATEGORY_COLORS: Record<string, string> = {
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 function unitCost(asset: Investment): number {
-  const a = asset.avg_buy_price;
+  const a = asset.buyPrice;
   if (a != null && a > 0) return a;
   return asset.buy_rate > 0 ? asset.buy_rate : 0;
 }
@@ -78,7 +78,7 @@ function getCategoryTotal(
   mfAllocation: DebtMFAllocation,
 ): number {
   return assets.reduce((sum, asset) => {
-    const base = asset.quantity * asset.current_price;
+    const base = asset.quantity * asset.cmp;
     let stressed = base;
     if (activeSimulation === 'MARKET_MELTDOWN') {
       if (asset.investment_type === 'Stock')  stressed = base * 0.6;
@@ -100,7 +100,7 @@ function getStressedValue(
   debtAllocation: DebtMFAllocation,
   mfAllocation: DebtMFAllocation,
 ): number {
-  const base = asset.quantity * asset.current_price;
+  const base = asset.quantity * asset.cmp;
   if (activeSimulation === 'MARKET_MELTDOWN') {
     if (asset.investment_type === 'Stock')  return base * 0.6;
     if (asset.investment_type === 'Crypto') return base * 0.3;
@@ -163,7 +163,7 @@ function PortfolioTable({
 
         <tbody className="divide-y divide-slate-50">
           {assets.map((asset) => {
-            const marketValue  = asset.quantity * asset.current_price;
+            const marketValue  = asset.quantity * asset.cmp;
             const stressed     = getStressedValue(asset, tab, activeSimulation, debtAllocation, mfAllocation);
             const costBasis    = asset.quantity * unitCost(asset);
             const absReturn    = stressed - costBasis;
@@ -196,12 +196,12 @@ function PortfolioTable({
 
                 {/* Avg Buy Price */}
                 <td className="px-4 py-3 text-right font-mono text-slate-600 text-xs">
-                  {formatInr(asset.avg_buy_price)}
+                  {formatInr(asset.buyPrice)}
                 </td>
 
                 {/* CMP — keep neutral styling (no red) */}
                 <td className="px-4 py-3 text-right font-mono text-xs">
-                  <span className="text-slate-700">{formatInr(asset.current_price)}</span>
+                  <span className="text-slate-700">{formatInr(asset.cmp)}</span>
                 </td>
 
                 {/* Market Value OR P/L */}

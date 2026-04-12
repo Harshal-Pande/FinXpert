@@ -13,18 +13,25 @@ export class ClientsService {
     private readonly prisma: PrismaService,
     private readonly healthScoreService: HealthScoreService,
     private readonly formulaService: HealthScoreFormulaService,
-  ) {}
+  ) { }
 
   async findAll(params: {
+    advisorId?: string;
     search?: string;
     riskProfile?: string;
     page?: number;
     limit?: number;
   }) {
-    const { search, riskProfile, page = 1, limit = 100 } = params;
+    const { advisorId, search, riskProfile, page = 1, limit = 100 } = params;
 
     const where: Record<string, unknown> = {};
 
+    // Filter by advisor
+    if (advisorId && advisorId !== 'undefined' && advisorId !== 'null') {
+      where.advisor_id = advisorId;
+    }
+
+    // Search by name (case-insensitive)
     if (search && search.trim()) {
       where.name = {
         contains: search.trim(),
@@ -32,6 +39,7 @@ export class ClientsService {
       };
     }
 
+    // Filter by risk profile
     if (riskProfile) {
       where.risk_profile = riskProfile;
     }
@@ -47,20 +55,14 @@ export class ClientsService {
       this.prisma.client.count({ where }),
     ]);
 
-    const firstAdvisor = await this.prisma.advisor.findFirst({
-      orderBy: { created_at: 'asc' },
-      select: { id: true },
-    });
-    const formulaAdvisorId = firstAdvisor?.id;
-
     let steps: FormulaStep[] | null = null;
-    if (formulaAdvisorId) {
-      try {
-        const formula = await this.formulaService.getForAdvisor(formulaAdvisorId);
-        steps = (formula.steps as FormulaStep[]) ?? [];
-      } catch {
-        steps = null;
-      }
+    try {
+      const formula = await this.formulaService.getForAdvisor(advisorId);
+      steps = (formula.steps as FormulaStep[]) ?? [];
+    } catch {
+      // In a fresh production DB (no seeded advisor), the formula service can’t resolve an advisor.
+      // Clients list should still work; we simply omit calculated health score fields.
+      steps = null;
     }
 
     if (!steps) {
@@ -76,6 +78,8 @@ export class ClientsService {
       };
     }
 
+    // Same peer-normalization as findOne: min/max raw scores across ALL clients matching
+    // this query (not just the current page), so list and detail always show one number.
     const allMatching = await this.prisma.client.findMany({
       where,
       include: { investments: true },
@@ -127,21 +131,10 @@ export class ClientsService {
 
     if (!client) throw new NotFoundException(`Client with ID ${id} not found`);
 
-    let steps: FormulaStep[] | null = null;
-    try {
-      const formula = await this.formulaService.getForAdvisor(client.advisor_id);
-      steps = (formula.steps as FormulaStep[]) ?? [];
-    } catch {
-      steps = null;
-    }
-
-    if (!steps) {
-      return {
-        ...client,
-        calculatedHealthScore: null,
-        calculatedHealthBreakdown: null,
-      };
-    }
+    // Compute the live normalized health score using the same cross-client
+    // pipeline as findAll, so both endpoints always agree on the number.
+    const formula = await this.formulaService.getForAdvisor(client.advisor_id);
+    const steps = formula.steps as FormulaStep[];
 
     const allClients = await this.prisma.client.findMany({
       where: { advisor_id: client.advisor_id },
@@ -177,48 +170,35 @@ export class ClientsService {
     };
   }
 
-  async create(data: {
-    name: string;
-    age: number;
-    occupation: string;
-    annual_income: number;
-    monthly_expense: number;
-    emergency_fund?: number;
-    insurance_coverage?: number;
-    risk_profile?: string;
-    investment_horizon?: string;
-  }) {
-    const advisorId = await this.resolveFirstAdvisorId();
-    const horizon = (data.investment_horizon ?? 'long').toLowerCase();
+  async create(data: { advisorId?: string; [key: string]: unknown }) {
+    const { advisorId, ...rest } = data;
+    const resolvedAdvisorId = await this.resolveAdvisorId(advisorId);
 
     return this.prisma.client.create({
       data: {
-        advisor_id: advisorId,
-        name: data.name,
-        age: data.age,
-        occupation: data.occupation,
-        annual_income: data.annual_income,
-        monthly_expense: data.monthly_expense,
-        emergency_fund: data.emergency_fund ?? null,
-        insurance_coverage: data.insurance_coverage ?? null,
-        risk_profile: data.risk_profile ?? 'moderate',
-        investment_horizon: horizon,
-      },
-      include: { investments: true },
+        ...rest,
+        advisor_id: resolvedAdvisorId,
+      } as any,
     });
   }
 
-  private async resolveFirstAdvisorId(): Promise<string> {
-    const advisor = await this.prisma.advisor.findFirst({
+  private async resolveAdvisorId(advisorId?: string): Promise<string> {
+    if (advisorId && advisorId !== 'undefined' && advisorId !== 'null') {
+      return advisorId;
+    }
+
+    const fallbackAdvisor = await this.prisma.advisor.findFirst({
       orderBy: { created_at: 'asc' },
       select: { id: true },
     });
-    if (!advisor) {
+
+    if (!fallbackAdvisor) {
       throw new BadRequestException(
         'No advisor exists yet. Seed or create an advisor before adding clients.',
       );
     }
-    return advisor.id;
+
+    return fallbackAdvisor.id;
   }
 
   async update(id: string, data: UpdateClientDto) {
@@ -229,39 +209,46 @@ export class ClientsService {
   }
 
   async getPortfolioHistory(clientId: string) {
-    await this.prisma.client.findUniqueOrThrow({ where: { id: clientId } });
-    const snapshots = await this.prisma.portfolioSnapshot.findMany({
+    const rows = await this.prisma.portfolioHistory.findMany({
       where: { client_id: clientId },
       orderBy: { date: 'asc' },
-      select: { id: true, total_value: true, date: true },
+      select: { id: true, total_aum: true, date: true },
     });
-    return snapshots.map((s) => ({
-      id: s.id,
-      totalValue: s.total_value,
-      date: s.date.toISOString(),
-      month: s.date.toLocaleDateString('en-IN', { month: 'short', year: '2-digit' }),
+    return rows.map((r) => ({
+      id: r.id,
+      totalValue: r.total_aum,
+      date: r.date.toISOString(),
+      /** 15-day checkpoint label for chart X-axis */
+      label: r.date.toLocaleDateString('en-IN', {
+        day: '2-digit',
+        month: 'short',
+        year: '2-digit',
+      }),
+      month: r.date.toLocaleDateString('en-IN', { month: 'short', year: '2-digit' }),
     }));
   }
 
   async getAdvisorAumHistory() {
-    const all = await this.prisma.portfolioSnapshot.findMany({
+    const rows = await this.prisma.portfolioHistory.findMany({
       orderBy: { date: 'asc' },
-      select: { total_value: true, date: true },
+      select: { total_aum: true, date: true },
     });
 
-    const grouped = new Map<string, { total: number; date: Date }>();
-    for (const s of all) {
-      const key = s.date.toLocaleDateString('en-IN', { month: 'short', year: '2-digit' });
-      const existing = grouped.get(key);
-      if (existing) {
-        existing.total += s.total_value;
-      } else {
-        grouped.set(key, { total: s.total_value, date: s.date });
-      }
+    const byTs = new Map<number, number>();
+    for (const r of rows) {
+      const t = r.date.getTime();
+      byTs.set(t, (byTs.get(t) ?? 0) + r.total_aum);
     }
 
-    return Array.from(grouped.entries())
-      .sort((a, b) => a[1].date.getTime() - b[1].date.getTime())
-      .map(([month, { total }]) => ({ month, totalValue: Math.round(total) }));
+    return Array.from(byTs.entries())
+      .sort((a, b) => a[0] - b[0])
+      .map(([ts, total]) => ({
+        month: new Date(ts).toLocaleDateString('en-IN', {
+          day: '2-digit',
+          month: 'short',
+          year: '2-digit',
+        }),
+        totalValue: Math.round(total),
+      }));
   }
 }

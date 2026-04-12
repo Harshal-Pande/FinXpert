@@ -1,11 +1,16 @@
 import { apiClient } from './client';
 
-export interface PortfolioSnapshot {
+export interface PortfolioHistoryPoint {
   id: string;
   totalValue: number;
   date: string;
+  /** 15-day checkpoint label for the chart X-axis */
+  label: string;
   month: string;
 }
+
+/** @deprecated use PortfolioHistoryPoint */
+export type PortfolioSnapshot = PortfolioHistoryPoint;
 
 export interface AumHistoryPoint {
   month: string;
@@ -13,8 +18,8 @@ export interface AumHistoryPoint {
 }
 
 /** Fetch 6-month portfolio history for a single client. */
-export function getClientHistory(clientId: string): Promise<PortfolioSnapshot[]> {
-  return apiClient<PortfolioSnapshot[]>(`/clients/${clientId}/history`);
+export function getClientHistory(clientId: string): Promise<PortfolioHistoryPoint[]> {
+  return apiClient<PortfolioHistoryPoint[]>(`/clients/${clientId}/history`);
 }
 
 /** Aggregate all client snapshots into per-month AUM totals. */

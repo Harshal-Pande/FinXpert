@@ -30,13 +30,19 @@ export class UpdateAssetDto {
   @IsNumber()
   @Type(() => Number)
   @Min(0)
-  avg_buy_price?: number;
+  buyPrice?: number;
 
   @IsOptional()
   @IsNumber()
   @Type(() => Number)
   @Min(0)
-  current_price?: number;
+  totalCost?: number;
+
+  @IsOptional()
+  @IsNumber()
+  @Type(() => Number)
+  @Min(0)
+  cmp?: number;
 
   @IsOptional()
   @IsDateString()

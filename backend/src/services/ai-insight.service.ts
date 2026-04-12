@@ -158,4 +158,46 @@ export class AiInsightService {
     }
     return [];
   }
+
+  /**
+   * Fuzzy-match an instrument name and return an approximate current price per unit in INR (CMP).
+   */
+  async resolveInstrumentCurrentPriceInr(instrumentName: string): Promise<number | null> {
+    if (!this.genAI) {
+      return null;
+    }
+    if (isGeminiQuotaCooldownActive()) {
+      return null;
+    }
+
+    const prompt = `The advisor typed this Indian portfolio holding name (may have typos or abbreviations): "${instrumentName}".
+Identify the most likely real instrument: NSE/BSE stock, Indian mutual fund scheme, ETF, SGB, or major crypto in INR.
+Respond with JSON ONLY, no markdown: {"matchedName":"string","currentPriceINR":number}
+where currentPriceINR is the best approximate current market price for ONE unit (one share or one NAV unit) in INR, using 2 decimals when needed. If ambiguous, pick the most liquid match.`;
+
+    const modelsToTry = ['gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-1.5-flash', 'gemini-pro'];
+
+    for (const modelName of modelsToTry) {
+      try {
+        const model = this.genAI.getGenerativeModel({ model: modelName });
+        const result = await model.generateContent(prompt);
+        const text = result.response.text();
+        const jsonMatch = text.match(/\{[\s\S]*\}/);
+        if (!jsonMatch) continue;
+        const parsed = JSON.parse(jsonMatch[0]) as { currentPriceINR?: number };
+        const n = Number(parsed.currentPriceINR);
+        if (Number.isFinite(n) && n > 0) {
+          return n;
+        }
+      } catch (err) {
+        if (isLikelyGeminiQuotaError(err)) {
+          armGeminiQuotaCooldown();
+          logGeminiQuotaThrottled(this.logger, 'Instrument CMP (Gemini)');
+          break;
+        }
+        this.logger.debug(`resolveInstrumentCurrentPriceInr: ${modelName} failed`);
+      }
+    }
+    return null;
+  }
 }

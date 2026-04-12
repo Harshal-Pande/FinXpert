@@ -5,8 +5,10 @@ export type SimpleInvestmentCategory = 'equity' | 'debt' | 'cash' | 'gold';
 
 export interface CreateInvestmentPayload {
   instrument_name: string;
-  value: number;
   category: SimpleInvestmentCategory;
+  /** Unit buy price (INR). */
+  price: number;
+  quantity: number;
   bought_at?: string;
 }
 
