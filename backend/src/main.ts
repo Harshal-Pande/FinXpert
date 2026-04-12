@@ -1,9 +1,8 @@
-import { NestFactory, Reflector } from '@nestjs/core';
+import { NestFactory } from '@nestjs/core';
 import { ValidationPipe, RequestMethod } from '@nestjs/common';
 import type { Application, NextFunction, Request, Response } from 'express';
 import { AppModule } from './app.module';
 import { ConfigService } from '@nestjs/config';
-import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
 
 /** HTML + JSON landing for GET / — Express runs this before Nest routing (Render opens `/` in the browser). */
 function attachApiRootPage(expressApp: Application, config: ConfigService) {
@@ -104,11 +103,9 @@ async function bootstrap() {
     }),
   );
 
-  // 3. SETUP GLOBAL AUTH GUARD
-  const reflector = app.get(Reflector);
-  // app.useGlobalGuards(new JwtAuthGuard(reflector)); // Uncomment when ready for JWT
+  // No global JWT guard — public demo API (per-route @Public() where marked).
 
-  // 4. PORT CONFIGURATION
+  // PORT CONFIGURATION
   const port = Number(config.get('PORT') ?? config.get('port') ?? 3001) || 3001;
   // Dev: omit host so Node binds IPv6 (::) when available — fixes browsers resolving
   // "localhost" to ::1 while the API was only on 0.0.0.0 (IPv4).

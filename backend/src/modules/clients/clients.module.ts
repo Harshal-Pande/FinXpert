@@ -3,10 +3,9 @@ import { ClientsController } from './clients.controller';
 import { ClientsService } from './clients.service';
 import { PrismaModule } from '../../database/prisma.module';
 import { HealthScoreModule } from '../health-score/health-score.module';
-import { AuthModule } from '../auth/auth.module';
 
 @Module({
-  imports: [PrismaModule, HealthScoreModule, AuthModule],
+  imports: [PrismaModule, HealthScoreModule],
   controllers: [ClientsController],
   providers: [ClientsService],
   exports: [ClientsService],
