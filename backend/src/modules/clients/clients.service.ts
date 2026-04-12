@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, UnauthorizedException } from '@nestjs/common';
 import { PrismaService } from '../../database/prisma.service';
 import { UpdateClientDto } from './dto/update-client.dto';
 import { HealthScoreService } from '../health-score/health-score.service';
@@ -16,7 +16,7 @@ export class ClientsService {
   ) {}
 
   async findAll(params: {
-    advisorId?: string;
+    advisorId: string;
     search?: string;
     riskProfile?: string;
     page?: number;
@@ -24,12 +24,7 @@ export class ClientsService {
   }) {
     const { advisorId, search, riskProfile, page = 1, limit = 100 } = params;
 
-    const where: Record<string, unknown> = {};
-
-    // Filter by advisor
-    if (advisorId && advisorId !== 'undefined' && advisorId !== 'null') {
-      where.advisor_id = advisorId;
-    }
+    const where: Record<string, unknown> = { advisor_id: advisorId };
 
     // Search by name (case-insensitive)
     if (search && search.trim()) {
@@ -116,9 +111,9 @@ export class ClientsService {
     return { items: projected, total, page, limit };
   }
 
-  async findOne(id: string) {
-    const client = await this.prisma.client.findUnique({
-      where: { id },
+  async findOne(id: string, advisorId: string) {
+    const client = await this.prisma.client.findFirst({
+      where: { id, advisor_id: advisorId },
       include: {
         investments: true,
         healthScores: {
@@ -133,8 +128,23 @@ export class ClientsService {
 
     // Compute the live normalized health score using the same cross-client
     // pipeline as findAll, so both endpoints always agree on the number.
-    const formula = await this.formulaService.getForAdvisor(client.advisor_id);
-    const steps = formula.steps as FormulaStep[];
+    // Falls back gracefully when no formula is configured for the advisor.
+    let steps: FormulaStep[] | null = null;
+    try {
+      const formula = await this.formulaService.getForAdvisor(client.advisor_id);
+      steps = (formula.steps as FormulaStep[]) ?? [];
+    } catch {
+      // No formula configured — return client without computed health scores
+      steps = null;
+    }
+
+    if (!steps) {
+      return {
+        ...client,
+        calculatedHealthScore: null,
+        calculatedHealthBreakdown: null,
+      };
+    }
 
     const allClients = await this.prisma.client.findMany({
       where: { advisor_id: client.advisor_id },
@@ -170,45 +180,51 @@ export class ClientsService {
     };
   }
 
-  async create(data: { advisorId: string; [key: string]: unknown }) {
-    const { advisorId, ...rest } = data;
-    const resolvedAdvisorId = await this.resolveAdvisorId(advisorId);
+  async create(data: {
+    advisorId: string;
+    name: string;
+    age: number;
+    occupation: string;
+    annual_income: number;
+    monthly_expense: number;
+    emergency_fund?: number;
+    insurance_coverage?: number;
+    risk_profile?: string;
+    investment_horizon?: string;
+  }) {
+    if (!data.advisorId?.trim()) {
+      throw new UnauthorizedException('Advisor context required to create a client');
+    }
+
+    const horizon = (data.investment_horizon ?? 'long').toLowerCase();
 
     return this.prisma.client.create({
       data: {
-        ...rest,
-        advisor_id: resolvedAdvisorId,
-      } as any,
+        advisor_id: data.advisorId,
+        name: data.name,
+        age: data.age,
+        occupation: data.occupation,
+        annual_income: data.annual_income,
+        monthly_expense: data.monthly_expense,
+        emergency_fund: data.emergency_fund ?? null,
+        insurance_coverage: data.insurance_coverage ?? null,
+        risk_profile: data.risk_profile ?? 'moderate',
+        investment_horizon: horizon,
+      },
+      include: { investments: true },
     });
   }
 
-  private async resolveAdvisorId(advisorId?: string): Promise<string> {
-    if (advisorId && advisorId !== 'undefined' && advisorId !== 'null') {
-      return advisorId;
-    }
-
-    const fallbackAdvisor = await this.prisma.advisor.findFirst({
-      orderBy: { created_at: 'asc' },
-      select: { id: true },
-    });
-
-    if (!fallbackAdvisor) {
-      throw new BadRequestException(
-        'No advisor exists yet. Seed or create an advisor before adding clients.',
-      );
-    }
-
-    return fallbackAdvisor.id;
-  }
-
-  async update(id: string, data: UpdateClientDto) {
+  async update(id: string, advisorId: string, data: UpdateClientDto) {
+    await this.assertClientOwnedByAdvisor(id, advisorId);
     return this.prisma.client.update({
       where: { id },
       data,
     });
   }
 
-  async getPortfolioHistory(clientId: string) {
+  async getPortfolioHistory(clientId: string, advisorId: string) {
+    await this.assertClientOwnedByAdvisor(clientId, advisorId);
     const snapshots = await this.prisma.portfolioSnapshot.findMany({
       where: { client_id: clientId },
       orderBy: { date: 'asc' },
@@ -222,8 +238,28 @@ export class ClientsService {
     }));
   }
 
-  async getAdvisorAumHistory() {
+  private async assertClientOwnedByAdvisor(clientId: string, advisorId: string): Promise<void> {
+    const row = await this.prisma.client.findFirst({
+      where: { id: clientId, advisor_id: advisorId },
+      select: { id: true },
+    });
+    if (!row) {
+      throw new NotFoundException(`Client with ID ${clientId} not found`);
+    }
+  }
+
+  async getAdvisorAumHistory(advisorId: string) {
+    const clients = await this.prisma.client.findMany({
+      where: { advisor_id: advisorId },
+      select: { id: true },
+    });
+    const ids = clients.map((c) => c.id);
+    if (ids.length === 0) {
+      return [];
+    }
+
     const all = await this.prisma.portfolioSnapshot.findMany({
+      where: { client_id: { in: ids } },
       orderBy: { date: 'asc' },
       select: { total_value: true, date: true },
     });

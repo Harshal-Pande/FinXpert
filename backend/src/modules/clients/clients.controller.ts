@@ -7,15 +7,16 @@ import {
   Param,
   Query,
   ParseUUIDPipe,
+  UseGuards,
 } from '@nestjs/common';
 import { ClientsService } from './clients.service';
 import { CreateClientDto } from './dto/create-client.dto';
 import { UpdateClientDto } from './dto/update-client.dto';
 import { ListClientsQueryDto } from './dto/list-clients-query.dto';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
-import { Public } from '../../common/decorators/public.decorator';
+import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 
-@Public() // This opens all routes in this controller to the public
+@UseGuards(JwtAuthGuard)
 @Controller('clients')
 export class ClientsController {
   constructor(private readonly clientsService: ClientsService) {}
@@ -31,32 +32,38 @@ export class ClientsController {
   @Get()
   findAll(
     @Query() query: ListClientsQueryDto,
-    @CurrentUser('id') advisorId?: string, // Marked as optional for public access
+    @CurrentUser('id') advisorId: string,
   ) {
-    // We pass advisorId (which will be undefined if not logged in)
     return this.clientsService.findAll({ ...query, advisorId });
   }
 
   @Get('aum-history')
-  getAumHistory() {
-    return this.clientsService.getAdvisorAumHistory();
+  getAumHistory(@CurrentUser('id') advisorId: string) {
+    return this.clientsService.getAdvisorAumHistory(advisorId);
   }
 
   @Get(':id')
-  findOne(@Param('id', ParseUUIDPipe) id: string) {
-    return this.clientsService.findOne(id);
+  findOne(
+    @Param('id', ParseUUIDPipe) id: string,
+    @CurrentUser('id') advisorId: string,
+  ) {
+    return this.clientsService.findOne(id, advisorId);
   }
 
   @Get(':id/history')
-  getHistory(@Param('id', ParseUUIDPipe) id: string) {
-    return this.clientsService.getPortfolioHistory(id);
+  getHistory(
+    @Param('id', ParseUUIDPipe) id: string,
+    @CurrentUser('id') advisorId: string,
+  ) {
+    return this.clientsService.getPortfolioHistory(id, advisorId);
   }
 
   @Put(':id')
   update(
     @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: UpdateClientDto,
+    @CurrentUser('id') advisorId: string,
   ) {
-    return this.clientsService.update(id, dto);
+    return this.clientsService.update(id, advisorId, dto);
   }
 }

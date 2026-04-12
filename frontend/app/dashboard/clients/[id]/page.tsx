@@ -48,6 +48,7 @@ export default function ClientDetailPage() {
   const [stressedScore, setStressedScore] = useState<number | null>(null);
   const [displayedScore, setDisplayedScore] = useState(0);
   const [historyData, setHistoryData] = useState<PortfolioSnapshot[]>([]);
+  const [historyLoaded, setHistoryLoaded] = useState(false);
 
   // Advisory
   const [sendingAdvisory, setSendingAdvisory] = useState(false);
@@ -64,8 +65,11 @@ export default function ClientDetailPage() {
       .then(setClient)
       .catch((err) => setError(err instanceof Error ? err.message : 'Failed to load client'))
       .finally(() => setLoading(false));
-    // Fetch portfolio history in parallel
-    getClientHistory(id).then(setHistoryData).catch(() => { });
+    setHistoryLoaded(false);
+    getClientHistory(id)
+      .then(setHistoryData)
+      .catch(() => setHistoryData([]))
+      .finally(() => setHistoryLoaded(true));
   }, [id]);
 
   // Single source of truth: calculatedHealthScore is the live normalized
@@ -74,6 +78,8 @@ export default function ClientDetailPage() {
     if (!client) return 0;
     return client.calculatedHealthScore ?? 0;
   }, [client]);
+
+  const canChartHistory = historyLoaded && historyData.length >= 2;
 
   // ── Helpers used by the two memos below ──────────────────────────────────
   const _allAssets = client?.investments ?? [];
@@ -220,7 +226,10 @@ export default function ClientDetailPage() {
                       className={`inline-flex rounded-md px-3 py-1 text-xs font-bold uppercase tracking-wider ${activeSimulation ? 'bg-red-100 text-red-700' : 'bg-indigo-100 text-indigo-700'
                         }`}
                     >
-                      {activeSimulation ? 'Stressed Score' : 'Health Score'}: {displayedScore.toFixed(1)}
+                      {activeSimulation ? 'Stressed Score' : 'Health Score'}:{' '}
+                      {!activeSimulation && client!.calculatedHealthScore == null
+                        ? '—'
+                        : displayedScore.toFixed(1)}
                     </span>
                     <button
                       type="button"
@@ -243,9 +252,47 @@ export default function ClientDetailPage() {
               Portfolio History
             </div>
             <div className="w-full flex-1 mt-8" style={{ minHeight: 160 }}>
-              {historyData.length === 0 ? (
+              {!historyLoaded ? (
+                <div
+                  className="flex h-full w-full items-center justify-center rounded-2xl border-2 border-slate-200 bg-white"
+                  style={{ minHeight: 140 }}
+                  aria-busy
+                >
+                  <div className="h-8 w-8 animate-spin rounded-full border-2 border-slate-300 border-t-slate-700" />
+                </div>
+              ) : !canChartHistory ? (
                 <div className="flex h-full items-center justify-center">
-                  <p className="text-xs text-slate-400">No history data yet.</p>
+                  <div
+                    className="flex w-full flex-col items-center justify-center gap-3 rounded-2xl border-2 border-slate-300 bg-white px-8 py-8 shadow-sm"
+                    style={{ minHeight: 140 }}
+                  >
+                    <div className="flex items-center justify-center rounded-full border border-slate-200 bg-slate-50 p-3">
+                      <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        width="24"
+                        height="24"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="1.5"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        className="text-slate-400"
+                      >
+                        <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
+                      </svg>
+                    </div>
+                    <p className="text-sm font-medium text-slate-600">
+                      {historyData.length === 0
+                        ? 'No portfolio history yet'
+                        : 'Not enough history to chart'}
+                    </p>
+                    <p className="text-xs text-slate-500 text-center max-w-[260px] leading-relaxed">
+                      {historyData.length === 0
+                        ? 'Trend data will appear after snapshots are recorded for this client.'
+                        : 'At least two snapshots are needed to show a meaningful trend line.'}
+                    </p>
+                  </div>
                 </div>
               ) : (
                 <ResponsiveContainer width="100%" height={160}>
@@ -419,11 +466,15 @@ export default function ClientDetailPage() {
         currentScore={realHealthScore}
         onSimulationSelect={(scenario: StressScenario, result: StressTestResult) => {
           setActiveSimulation(scenario);
-          // Always clamp stressed score below the real score so badge shows a meaningful drop.
-          setStressedScore(Math.min(result.stressedScore, realHealthScore - 0.5));
+          const maxStressed =
+            realHealthScore >= 0.5 ? realHealthScore - 0.5 : result.stressedScore;
+          const applied = Math.min(result.stressedScore, maxStressed);
+          setStressedScore(Math.max(0, applied));
           toast.warning(
             `🚨 ${scenario.replaceAll('_', ' ')} simulation active — showing stressed values`,
-            { description: `Score dropped from ${realHealthScore.toFixed(1)} → ${Math.min(result.stressedScore, realHealthScore - 0.5).toFixed(1)}` },
+            {
+              description: `Score dropped from ${realHealthScore.toFixed(1)} → ${Math.max(0, applied).toFixed(1)}`,
+            },
           );
         }}
       />

@@ -144,7 +144,7 @@ export default function ClientsPage() {
         payload.insurance_coverage = Number(addClientForm.insurance_coverage);
       }
 
-      await createClient(payload);
+      const newClient = await createClient(payload);
       setShowAddModal(false);
       setAddClientForm({
         name: '',
@@ -157,7 +157,13 @@ export default function ClientsPage() {
         risk_profile: 'moderate',
         investment_horizon: 'long',
       });
-      loadClients();
+
+      // Navigate to the new client's detail page for immediate setup
+      if (newClient?.id) {
+        router.push(`/dashboard/clients/${newClient.id}`);
+      } else {
+        loadClients();
+      }
     } catch (err) {
       setAddClientError(err instanceof Error ? err.message : 'Failed to create client');
     } finally {
