@@ -11,6 +11,7 @@ import {
 import { AssetsService } from './assets.service';
 import { CreateAssetDto } from './dto/create-asset.dto';
 import { UpdateAssetDto } from './dto/update-asset.dto';
+import { BulkInvestmentsDto } from './dto/bulk-investments.dto';
 import { Public } from '../../common/decorators/public.decorator';
 
 @Public()
@@ -24,6 +25,14 @@ export class AssetsController {
     @Body() dto: CreateAssetDto,
   ) {
     return this.assetsService.create(clientId, dto);
+  }
+
+  @Post('bulk')
+  bulkCreate(
+    @Param('clientId', ParseUUIDPipe) clientId: string,
+    @Body() dto: BulkInvestmentsDto,
+  ) {
+    return this.assetsService.bulkAddInvestments(clientId, dto);
   }
 
   @Get()

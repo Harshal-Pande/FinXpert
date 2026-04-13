@@ -2,7 +2,8 @@ import { BadRequestException, Injectable, NotFoundException } from '@nestjs/comm
 import { PrismaService } from '../../database/prisma.service';
 import { CreateAssetDto } from './dto/create-asset.dto';
 import { UpdateAssetDto } from './dto/update-asset.dto';
-import { InvestmentCategory, InvestmentType } from '@prisma/client';
+import { BulkInvestmentsDto } from './dto/bulk-investments.dto';
+import { Investment, InvestmentCategory, InvestmentType } from '@prisma/client';
 import { AiInsightService } from '../../services/ai-insight.service';
 
 function normalizeInvestmentType(value: 'Stock' | 'Crypto' | 'Debt' | 'Mutual Fund'): InvestmentType {
@@ -114,6 +115,89 @@ export class AssetsService {
     await this.recalcClientAum(clientId);
 
     return { ...created, performance: this.getPerformanceData(created) };
+  }
+
+  /**
+   * Bulk import from Excel/CSV: each row gets AI-verified name + CMP (fallback: buy price).
+   * Creates rows in a loop (per-row CMP), then recalculates client total_aum once.
+   */
+  async bulkAddInvestments(clientId: string, dto: BulkInvestmentsDto) {
+    await this.prisma.client.findUniqueOrThrow({ where: { id: clientId } });
+
+    const rows = dto.rows ?? [];
+    if (rows.length === 0) {
+      throw new BadRequestException('No rows to import');
+    }
+    if (rows.length > 200) {
+      throw new BadRequestException('Maximum 200 rows per import');
+    }
+
+    const boughtAt = new Date();
+    type WithPerf = Investment & {
+      performance: {
+        invested_amount: number;
+        current_value: number;
+        absolute_pnl: number;
+        pnl_percentage: number;
+      };
+    };
+    const created: WithPerf[] = [];
+
+    for (const row of rows) {
+      const name = row.instrument_name?.trim() ?? '';
+      if (!name) continue;
+
+      const qty = Number(row.quantity);
+      const buyPrice = Number(row.buyPrice);
+      if (!(qty > 0) || !(buyPrice > 0)) {
+        throw new BadRequestException(`Invalid quantity or buy price for "${name}"`);
+      }
+
+      const { investment_type, category } = mapSimpleCategory(row.category);
+      const totalCost = qty * buyPrice;
+
+      let officialName = name;
+      let cmp = buyPrice;
+      const sync = await this.aiInsight.verifyPortfolioInstrumentCmp(name, category);
+      if (sync) {
+        if (sync.officialName?.trim()) {
+          officialName = sync.officialName.trim();
+        }
+        if (Number.isFinite(sync.cmp) && sync.cmp > 0) {
+          cmp = sync.cmp;
+        }
+      }
+
+      const inv = await this.prisma.investment.create({
+        data: {
+          client_id: clientId,
+          investment_type,
+          category,
+          instrument_name: officialName,
+          quantity: qty,
+          buyPrice,
+          totalCost,
+          cmp,
+          buy_rate: buyPrice,
+          total_value: qty * cmp,
+          bought_at: boughtAt,
+        },
+      });
+
+      created.push({ ...inv, performance: this.getPerformanceData(inv) });
+    }
+
+    if (created.length === 0) {
+      throw new BadRequestException('No valid rows could be imported');
+    }
+
+    const total_aum = await this.recalcClientAum(clientId);
+
+    return {
+      imported: created.length,
+      total_aum,
+      investments: created,
+    };
   }
 
   async findAll(clientId: string) {

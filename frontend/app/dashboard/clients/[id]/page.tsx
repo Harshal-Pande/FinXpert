@@ -20,6 +20,7 @@ import {
 import { toast } from 'sonner';
 import Breadcrumb from '@/components/layout/Breadcrumb';
 import AssetVault from '@/components/portfolio/AssetVault';
+import ImportPortfolioModal from '@/components/portfolio/ImportPortfolioModal';
 import StressTestModal from '@/components/modals/StressTestModal';
 import { StressScenario, StressTestResult } from '@/lib/api/stress-test';
 import {
@@ -49,6 +50,7 @@ export default function ClientDetailPage() {
   const [historyData, setHistoryData] = useState<PortfolioHistoryPoint[]>([]);
 
   const [showAddAssetModal, setShowAddAssetModal] = useState(false);
+  const [showImportModal, setShowImportModal] = useState(false);
   const [addAssetSaving, setAddAssetSaving] = useState(false);
   const [addAssetError, setAddAssetError] = useState<string | null>(null);
   const [addAssetForm, setAddAssetForm] = useState({
@@ -402,6 +404,13 @@ export default function ClientDetailPage() {
             <Plus className="h-4 w-4" />
             Add asset
           </button>
+          <button
+            type="button"
+            onClick={() => setShowImportModal(true)}
+            className="inline-flex items-center gap-2 rounded-xl border-2 border-indigo-900/40 bg-indigo-50 px-4 py-2 text-xs font-semibold text-indigo-900 hover:bg-indigo-100/80"
+          >
+            Import from Excel
+          </button>
         </div>
 
         {activeSimulation && (
@@ -641,6 +650,13 @@ export default function ClientDetailPage() {
           </div>
         </div>
       )}
+
+      <ImportPortfolioModal
+        open={showImportModal}
+        onClose={() => setShowImportModal(false)}
+        clientId={id ?? ''}
+        onImported={() => void reloadClient()}
+      />
 
       <StressTestModal
         open={stressOpen}

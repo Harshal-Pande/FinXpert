@@ -43,3 +43,26 @@ export function updateInvestment(
     }),
   });
 }
+
+export interface BulkInvestmentRow {
+  instrument_name: string;
+  category: SimpleInvestmentCategory;
+  quantity: number;
+  buyPrice: number;
+}
+
+export interface BulkCreateInvestmentsResponse {
+  imported: number;
+  total_aum: number;
+  investments: Investment[];
+}
+
+export function bulkCreateInvestments(
+  clientId: string,
+  rows: BulkInvestmentRow[],
+): Promise<BulkCreateInvestmentsResponse> {
+  return apiClient<BulkCreateInvestmentsResponse>(`/clients/${clientId}/investments/bulk`, {
+    method: 'POST',
+    body: JSON.stringify({ rows }),
+  });
+}

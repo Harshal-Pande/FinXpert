@@ -14,8 +14,11 @@ export {
 export {
   createInvestment,
   updateInvestment,
+  bulkCreateInvestments,
   type CreateInvestmentPayload,
   type UpdateInvestmentPayload,
+  type BulkInvestmentRow,
+  type BulkCreateInvestmentsResponse,
   type SimpleInvestmentCategory,
 } from './investments';
 export { getUpcomingCompliance, type ComplianceItem } from './compliance';
