@@ -32,6 +32,8 @@ export interface DashboardSummary {
     wtcAlerts: ActionItem[];
   };
   strategicInsights: StrategicInsight[];
+  /** Book-level AUM mix narrative from database holdings. */
+  aiPortfolioSummary?: string;
   marketPulse: MarketPulse[];
   recentNews: MarketEvent[];
   isAiPowered?: boolean;

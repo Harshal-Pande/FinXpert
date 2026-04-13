@@ -18,3 +18,28 @@ export function createInvestment(clientId: string, payload: CreateInvestmentPayl
     body: JSON.stringify(payload),
   });
 }
+
+export interface UpdateInvestmentPayload {
+  instrument_name: string;
+  category: SimpleInvestmentCategory;
+  quantity: number;
+  /** Unit buy price (INR). */
+  buyPrice: number;
+}
+
+export function updateInvestment(
+  clientId: string,
+  investmentId: string,
+  payload: UpdateInvestmentPayload,
+): Promise<Investment> {
+  return apiClient<Investment>(`/clients/${clientId}/investments/${investmentId}`, {
+    method: 'PUT',
+    body: JSON.stringify({
+      instrument_name: payload.instrument_name,
+      category: payload.category,
+      quantity: payload.quantity,
+      buyPrice: payload.buyPrice,
+      buy_rate: payload.buyPrice,
+    }),
+  });
+}

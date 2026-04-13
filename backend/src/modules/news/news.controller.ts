@@ -2,7 +2,7 @@ import { Controller, Get, Query } from '@nestjs/common';
 import { NewsService, type NewsScope } from './news.service';
 import { Public } from '../../common/decorators/public.decorator';
 
-const SCOPES = new Set<NewsScope>(['All', 'Global', 'Domestic', 'Sector-wise']);
+const SCOPES = new Set<NewsScope>(['All', 'STOCK', 'DEBT', 'CRYPTO', 'MUTUAL_FUND']);
 
 @Controller('news')
 export class NewsController {

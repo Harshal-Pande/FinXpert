@@ -29,7 +29,7 @@ export type MarketNewsFeedSource =
   | 'fallback_gemini'
   | 'curated';
 
-export type NewsFeedScope = 'All' | 'Global' | 'Domestic' | 'Sector-wise';
+export type NewsFeedScope = 'All' | 'STOCK' | 'DEBT' | 'CRYPTO' | 'MUTUAL_FUND';
 
 export interface MarketNewsFeedResponse {
   items: MarketNewsItemDto[];

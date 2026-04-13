@@ -1,8 +1,10 @@
 'use client';
 
-import { useState, useRef, useLayoutEffect } from 'react';
+import { useState, useRef, useLayoutEffect, useCallback, type FormEvent } from 'react';
+import { Pencil } from 'lucide-react';
 import { Investment } from '@/lib/api/clients';
 import { StressScenario } from '@/lib/api/stress-test';
+import { updateInvestment, type SimpleInvestmentCategory } from '@/lib/api/investments';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 type Tab = 'stock' | 'debt' | 'crypto' | 'mutual_fund';
@@ -14,6 +16,9 @@ interface DebtMFAllocation {
 }
 
 interface Props {
+  /** When set, rows show Edit and updates call PUT /investments/:id then refresh client. */
+  clientId?: string;
+  onInvestmentUpdated?: () => void | Promise<void>;
   investments: Investment[];
   viewMode: ViewMode;
   activeSimulation: StressScenario | null;
@@ -137,6 +142,7 @@ function PortfolioTable({
   activeSimulation,
   debtAllocation,
   mfAllocation,
+  onEditAsset,
 }: {
   assets: Investment[];
   tab: Tab;
@@ -144,6 +150,7 @@ function PortfolioTable({
   activeSimulation: StressScenario | null;
   debtAllocation: DebtMFAllocation;
   mfAllocation: DebtMFAllocation;
+  onEditAsset?: (asset: Investment) => void;
 }) {
   return (
     <div className="overflow-x-auto rounded-xl border border-slate-100">
@@ -169,6 +176,11 @@ function PortfolioTable({
             >
               {viewMode === 'VALUE' ? 'Total Holdings' : 'P / L'}
             </th>
+            {onEditAsset ? (
+              <th className="px-4 py-2.5 text-xs font-semibold uppercase tracking-wider text-slate-500 text-right w-24">
+                Edit
+              </th>
+            ) : null}
           </tr>
         </thead>
 
@@ -247,6 +259,18 @@ function PortfolioTable({
                     </td>
                   </>
                 )}
+                {onEditAsset ? (
+                  <td className="px-4 py-3 text-right">
+                    <button
+                      type="button"
+                      onClick={() => onEditAsset(asset)}
+                      className="inline-flex items-center justify-center rounded-lg border border-slate-200 p-1.5 text-slate-600 hover:bg-slate-100 hover:text-slate-900"
+                      aria-label={`Edit ${asset.instrument_name}`}
+                    >
+                      <Pencil className="h-3.5 w-3.5" />
+                    </button>
+                  </td>
+                ) : null}
               </tr>
             );
           })}
@@ -294,6 +318,7 @@ function PortfolioTable({
                 </td>
               </>
             )}
+            {onEditAsset ? <td className="px-4 py-2.5" aria-hidden /> : null}
           </tr>
         </tfoot>
       </table>
@@ -303,6 +328,8 @@ function PortfolioTable({
 
 // ─── Asset Vault (main export) ────────────────────────────────────────────────
 export default function AssetVault({
+  clientId,
+  onInvestmentUpdated,
   investments,
   viewMode,
   activeSimulation,
@@ -313,6 +340,63 @@ export default function AssetVault({
   const [animKey, setAnimKey]     = useState(0);
   const contentRef                = useRef<HTMLDivElement>(null);
   const [contentHeight, setContentHeight] = useState<number | 'auto'>('auto');
+
+  const [editTarget, setEditTarget] = useState<Investment | null>(null);
+  const [editForm, setEditForm] = useState({
+    instrument_name: '',
+    category: 'STOCK' as SimpleInvestmentCategory,
+    quantity: '',
+    buyPrice: '',
+  });
+  const [editSaving, setEditSaving] = useState(false);
+  const [editError, setEditError] = useState<string | null>(null);
+
+  const openEditAsset = useCallback((asset: Investment) => {
+    setEditTarget(asset);
+    setEditForm({
+      instrument_name: asset.instrument_name,
+      category: asset.category,
+      quantity: String(asset.quantity),
+      buyPrice: String(asset.buyPrice),
+    });
+    setEditError(null);
+  }, []);
+
+  const closeEditAsset = useCallback(() => {
+    setEditTarget(null);
+    setEditError(null);
+  }, []);
+
+  const handleEditSubmit = async (e: FormEvent) => {
+    e.preventDefault();
+    if (!clientId || !editTarget) return;
+    const qty = Number(editForm.quantity);
+    const buy = Number(editForm.buyPrice);
+    if (!editForm.instrument_name.trim() || !Number.isFinite(qty) || qty <= 0) {
+      setEditError('Enter a valid name and quantity.');
+      return;
+    }
+    if (!Number.isFinite(buy) || buy <= 0) {
+      setEditError('Enter a valid buy price per unit.');
+      return;
+    }
+    setEditSaving(true);
+    setEditError(null);
+    try {
+      await updateInvestment(clientId, editTarget.id, {
+        instrument_name: editForm.instrument_name.trim(),
+        category: editForm.category,
+        quantity: qty,
+        buyPrice: buy,
+      });
+      await onInvestmentUpdated?.();
+      closeEditAsset();
+    } catch (err) {
+      setEditError(err instanceof Error ? err.message : 'Update failed');
+    } finally {
+      setEditSaving(false);
+    }
+  };
 
   const assets = investments.filter((inv) => inv.category === TAB_CATEGORY[activeTab]);
 
@@ -429,11 +513,100 @@ export default function AssetVault({
                 activeSimulation={activeSimulation}
                 debtAllocation={debtAllocation}
                 mfAllocation={mfAllocation}
+                onEditAsset={clientId ? openEditAsset : undefined}
               />
             </div>
           )}
         </div>
       </div>
+
+      {editTarget && clientId ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="w-full max-w-md rounded-2xl border-2 border-slate-800 bg-white p-6 shadow-xl">
+            <div className="mb-4 flex items-center justify-between">
+              <h2 className="text-lg font-semibold">Edit asset</h2>
+              <button
+                type="button"
+                onClick={closeEditAsset}
+                className="rounded-md border border-slate-300 px-2 py-1 text-xs text-slate-600 hover:bg-slate-50"
+              >
+                Close
+              </button>
+            </div>
+            <p className="mb-4 text-xs text-slate-500">
+              Submit to sync with FinXpert: CMP is verified via Gemini when available; otherwise buy price is used as
+              CMP.
+            </p>
+            <form onSubmit={(ev) => void handleEditSubmit(ev)} className="space-y-4">
+              <div>
+                <label className="mb-1 block text-xs font-medium text-slate-600">Instrument name</label>
+                <input
+                  required
+                  value={editForm.instrument_name}
+                  onChange={(e) => setEditForm((p) => ({ ...p, instrument_name: e.target.value }))}
+                  className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm focus:border-slate-800 focus:outline-none"
+                />
+              </div>
+              <div>
+                <label className="mb-1 block text-xs font-medium text-slate-600">Category</label>
+                <select
+                  value={editForm.category}
+                  onChange={(e) =>
+                    setEditForm((p) => ({ ...p, category: e.target.value as SimpleInvestmentCategory }))
+                  }
+                  className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm focus:border-slate-800 focus:outline-none"
+                >
+                  <option value="STOCK">Stock</option>
+                  <option value="DEBT">Debt</option>
+                  <option value="CRYPTO">Crypto</option>
+                  <option value="MUTUAL_FUND">Mutual Fund</option>
+                </select>
+              </div>
+              <div>
+                <label className="mb-1 block text-xs font-medium text-slate-600">Quantity</label>
+                <input
+                  required
+                  type="number"
+                  min={0.0001}
+                  step="any"
+                  value={editForm.quantity}
+                  onChange={(e) => setEditForm((p) => ({ ...p, quantity: e.target.value }))}
+                  className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm focus:border-slate-800 focus:outline-none"
+                />
+              </div>
+              <div>
+                <label className="mb-1 block text-xs font-medium text-slate-600">Buy price per unit (INR)</label>
+                <input
+                  required
+                  type="number"
+                  min={0.01}
+                  step="any"
+                  value={editForm.buyPrice}
+                  onChange={(e) => setEditForm((p) => ({ ...p, buyPrice: e.target.value }))}
+                  className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm focus:border-slate-800 focus:outline-none"
+                />
+              </div>
+              {editError ? <p className="text-sm text-red-600">{editError}</p> : null}
+              <div className="flex justify-end gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={closeEditAsset}
+                  className="rounded-xl border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={editSaving}
+                  className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800 disabled:opacity-50"
+                >
+                  {editSaving ? 'Saving…' : 'Save changes'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }

@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import { Clock, Globe, Home, Layers, Zap } from 'lucide-react';
+import { Clock, Coins, Landmark, PieChart, TrendingUp, Zap } from 'lucide-react';
 import {
   getMarketNewsFeed,
   toMarketEvent,
@@ -29,21 +29,28 @@ function buildEmptyOrBanner(res: MarketNewsFeedResponse, hasItems: boolean): {
       return {
         feedEmptyMessage: null,
         demoBanner:
-          'Demo feed: NEWS_API_KEY is not set on the API server. Headlines include Positive / Negative / Neutral sentiment for UI testing.',
+          'Demo feed: upstream keys may be missing. Items still include sentiment labels for UI testing where provided.',
       };
     }
     if (res.feedSource === 'fallback_error') {
       return {
         feedEmptyMessage: null,
         demoBanner:
-          'Demo feed: NewsAPI returned an error or rate limit. Check Render logs; use Retry after a few minutes.',
+          'Headline provider returned an error. Retry shortly or check API logs.',
       };
     }
     if (res.feedSource === 'curated') {
       return {
         feedEmptyMessage: null,
         demoBanner:
-          'NewsAPI and Gemini were unavailable; showing curated Global, Domestic, and Sector-wise headlines.',
+          'Gemini was unavailable; showing curated STOCK, DEBT, CRYPTO, and MUTUAL_FUND headlines (~90% India, ~10% global crypto by design).',
+      };
+    }
+    if (res.feedSource === 'fallback_gemini') {
+      return {
+        feedEmptyMessage: null,
+        demoBanner:
+          'Headlines generated for advisory context (STOCK, DEBT, CRYPTO, MUTUAL_FUND). Verify facts before client use.',
       };
     }
     return { feedEmptyMessage: null, demoBanner: null };
@@ -51,21 +58,20 @@ function buildEmptyOrBanner(res: MarketNewsFeedResponse, hasItems: boolean): {
 
   if (res.feedSource === 'empty_live') {
     return {
-      feedEmptyMessage: `No articles matched this search (zero results). Query sent: "${res.queryUsed}". Try another scope or Retry — NewsAPI free tier often rate-limits.`,
+      feedEmptyMessage: `No headlines available for this filter. Context: "${res.queryUsed}". Try another category or Retry.`,
       demoBanner: null,
     };
   }
   if (res.feedSource === 'fallback_no_api_key') {
     return {
       feedEmptyMessage:
-        'NEWS_API_KEY is not set on the API server — the feed cannot load live headlines. Add NEWS_API_KEY on Render and redeploy.',
+        'Headline service is not fully configured and returned no items. Set GEMINI_API_KEY on the API server for AI-generated subject news.',
       demoBanner: null,
     };
   }
   if (res.feedSource === 'fallback_error') {
     return {
-      feedEmptyMessage:
-        'News provider error — no demo articles returned. Check Render logs for NewsAPI HTTP or auth errors, then Retry.',
+      feedEmptyMessage: 'Headline provider error — no items returned. Retry or check API logs.',
       demoBanner: null,
     };
   }
@@ -143,16 +149,26 @@ export default function TrendsPage() {
 
   const getCategoryIcon = (category: string) => {
     switch (category) {
-      case 'Global':
-        return <Globe className="h-4 w-4" />;
-      case 'Domestic':
-        return <Home className="h-4 w-4" />;
-      case 'Sector-wise':
-        return <Layers className="h-4 w-4" />;
+      case 'STOCK':
+        return <TrendingUp className="h-4 w-4" />;
+      case 'DEBT':
+        return <Landmark className="h-4 w-4" />;
+      case 'CRYPTO':
+        return <Coins className="h-4 w-4" />;
+      case 'MUTUAL_FUND':
+        return <PieChart className="h-4 w-4" />;
       default:
         return null;
     }
   };
+
+  const SUBJECT_TABS: { value: CategoryFilter; label: string }[] = [
+    { value: 'All', label: 'All' },
+    { value: 'STOCK', label: 'Stock' },
+    { value: 'DEBT', label: 'Debt' },
+    { value: 'CRYPTO', label: 'Crypto' },
+    { value: 'MUTUAL_FUND', label: 'Mutual Fund' },
+  ];
 
   return (
     <div className="min-h-screen bg-slate-50 p-8 flex justify-center font-sans text-slate-800">
@@ -164,8 +180,9 @@ export default function TrendsPage() {
         <div className="mb-8">
           <Breadcrumb />
           <p className="mt-2 text-sm text-slate-500">
-            Live headlines from NewsAPI when available; Gemini may supplement fallbacks; otherwise FinXpert shows curated
-            Global, Domestic, and Sector-wise items. Each tab sends a different search query. Refreshes every 5 minutes.
+            Subject news is generated with Gemini when GEMINI_API_KEY is set (STOCK, DEBT, CRYPTO, MUTUAL_FUND; roughly 90%
+            India markets and 10% global crypto). Otherwise FinXpert serves a curated fallback in the same categories.
+            Filter tabs slice the feed. Refreshes every 5 minutes.
           </p>
           {queryUsed ? (
             <p className="mt-1 text-xs font-mono text-slate-500 break-all">
@@ -196,16 +213,16 @@ export default function TrendsPage() {
 
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-8">
           <div className="flex flex-wrap items-center gap-2">
-            {(['All', 'Global', 'Domestic', 'Sector-wise'] as CategoryFilter[]).map((cat) => (
+            {SUBJECT_TABS.map(({ value, label }) => (
               <button
-                key={cat}
+                key={value}
                 type="button"
-                onClick={() => setFilter(cat)}
+                onClick={() => setFilter(value)}
                 className={`px-4 py-2 rounded-xl text-sm font-semibold transition-all ${
-                  filter === cat ? 'bg-slate-800 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                  filter === value ? 'bg-slate-800 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
                 }`}
               >
-                {cat}
+                {label}
               </button>
             ))}
           </div>

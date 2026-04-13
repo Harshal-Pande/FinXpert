@@ -9,6 +9,7 @@ import {
   Clock,
   ChevronRight,
   Zap as ZapIcon,
+  Sparkles,
 } from 'lucide-react';
 import { getDashboardSummary, type DashboardSummary } from '@/lib/api/dashboard';
 import { getAdvisorAumHistory, type AumHistoryPoint } from '@/lib/api/portfolio-history';
@@ -148,6 +149,18 @@ export default function DashboardPage() {
             </div>
           </GlassCard>
         </div>
+
+        <GlassCard title="AI Summary" className="mb-8">
+          <div className="flex gap-3 pt-4">
+            <div className="shrink-0 mt-0.5 rounded-xl bg-indigo-50 p-2 border border-indigo-100">
+              <Sparkles className="h-5 w-5 text-indigo-600" aria-hidden />
+            </div>
+            <p className="text-sm text-slate-700 leading-relaxed">
+              {summary?.aiPortfolioSummary ??
+                'Aggregated allocation insight will appear once the dashboard loads book-level AUM from the database.'}
+            </p>
+          </div>
+        </GlassCard>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
 

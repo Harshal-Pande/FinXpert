@@ -11,7 +11,13 @@ export {
   type ListClientsResponse,
   type CreateClientPayload,
 } from './clients';
-export { createInvestment, type CreateInvestmentPayload, type SimpleInvestmentCategory } from './investments';
+export {
+  createInvestment,
+  updateInvestment,
+  type CreateInvestmentPayload,
+  type UpdateInvestmentPayload,
+  type SimpleInvestmentCategory,
+} from './investments';
 export { getUpcomingCompliance, type ComplianceItem } from './compliance';
 export {
   getMarketNewsFeed,

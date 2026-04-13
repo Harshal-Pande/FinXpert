@@ -11,4 +11,10 @@ export class AdvisoryController {
   sendAdvisory(@Param('clientId', ParseUUIDPipe) clientId: string) {
     return this.advisoryService.generateAdvisory(clientId);
   }
+
+  /** FinXpert AI Strategist — data-driven plan (Gemini + deterministic fallback). */
+  @Post('strategy')
+  strategicPlan(@Param('clientId', ParseUUIDPipe) clientId: string) {
+    return this.advisoryService.generateStrategicPlan(clientId);
+  }
 }

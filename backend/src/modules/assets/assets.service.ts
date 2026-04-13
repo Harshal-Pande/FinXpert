@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable, NotFoundException, Optional } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../database/prisma.service';
 import { CreateAssetDto } from './dto/create-asset.dto';
 import { UpdateAssetDto } from './dto/update-asset.dto';
@@ -25,7 +25,7 @@ function mapSimpleCategory(
 export class AssetsService {
   constructor(
     private readonly prisma: PrismaService,
-    @Optional() private readonly aiInsight?: AiInsightService,
+    private readonly aiInsight: AiInsightService,
   ) {}
 
   private getPerformanceData(investment: {
@@ -85,14 +85,12 @@ export class AssetsService {
     const boughtAt = dto.bought_at ? new Date(dto.bought_at) : new Date();
 
     let cmp = unitPrice;
-    if (this.aiInsight) {
-      const resolved = await this.aiInsight.resolveInstrumentCurrentPriceInr(
-        dto.instrument_name.trim(),
-        category,
-      );
-      if (resolved != null && resolved > 0) {
-        cmp = resolved;
-      }
+    const resolved = await this.aiInsight.resolveInstrumentCurrentPriceInr(
+      dto.instrument_name.trim(),
+      category,
+    );
+    if (resolved != null && resolved > 0) {
+      cmp = resolved;
     }
 
     const total_value = qty * cmp;
@@ -136,36 +134,64 @@ export class AssetsService {
     return { ...asset, performance: this.getPerformanceData(asset) };
   }
 
-  async update(clientId: string, id: string, dto: UpdateAssetDto) {
-    const existing = await this.findOne(clientId, id);
-    const quantity = dto.quantity ?? existing.quantity;
-    const buyRate = dto.buy_rate ?? existing.buy_rate;
-    const buyPrice = dto.buyPrice ?? existing.buyPrice;
-    const cmp = dto.cmp ?? existing.cmp;
-    const totalCost =
-      dto.totalCost ??
-      (quantity > 0 && buyPrice > 0 ? quantity * buyPrice : existing.totalCost);
-    const normalizedType = dto.investment_type
-      ? normalizeInvestmentType(dto.investment_type)
-      : existing.investment_type;
+  /**
+   * AI-validated edit: FinXpert Portfolio Synchronizer resolves officialName + CMP (INR);
+   * falls back to buy price as CMP when Gemini fails.
+   */
+  async updateInvestment(clientId: string, id: string, dto: UpdateAssetDto) {
+    const existing = await this.prisma.investment.findFirst({
+      where: { id, client_id: clientId },
+    });
+    if (!existing) throw new NotFoundException('Asset not found');
 
-    const updated = await this.prisma.investment.update({
+    const instrument_name = dto.instrument_name?.trim() ?? existing.instrument_name;
+    if (!instrument_name) {
+      throw new BadRequestException('instrument_name is required');
+    }
+
+    const categoryKey = (dto.category ?? existing.category) as string;
+    const quantity = dto.quantity ?? existing.quantity;
+    const buyPrice =
+      dto.buyPrice ?? dto.buy_rate ?? existing.buyPrice ?? existing.buy_rate;
+
+    if (!(quantity > 0) || !(buyPrice > 0)) {
+      throw new BadRequestException('quantity and buyPrice must be positive numbers');
+    }
+
+    const { investment_type, category } = mapSimpleCategory(categoryKey);
+    const totalCost = quantity * buyPrice;
+
+    let officialName = instrument_name;
+    let cmp = buyPrice;
+
+    const sync = await this.aiInsight.verifyPortfolioInstrumentCmp(instrument_name, category);
+    if (sync) {
+      if (sync.officialName?.trim()) {
+        officialName = sync.officialName.trim();
+      }
+      if (Number.isFinite(sync.cmp) && sync.cmp > 0) {
+        cmp = sync.cmp;
+      }
+    }
+
+    await this.prisma.investment.update({
       where: { id },
       data: {
-        investment_type: normalizedType,
-        category: dto.category ?? existing.category,
-        instrument_name: dto.instrument_name,
+        investment_type,
+        category,
+        instrument_name: officialName,
         quantity,
         buyPrice,
-        cmp,
-        buy_rate: buyRate,
+        buy_rate: buyPrice,
         totalCost,
+        cmp,
         total_value: quantity * cmp,
         bought_at: dto.bought_at ? new Date(dto.bought_at) : undefined,
       },
     });
+
     await this.recalcClientAum(clientId);
-    return { ...updated, performance: this.getPerformanceData(updated) };
+    return this.findOne(clientId, id);
   }
 
   async remove(clientId: string, id: string) {

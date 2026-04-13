@@ -1,6 +1,6 @@
 /**
- * Static fallback feed when NewsAPI / upstream feeds return nothing.
- * 10 Global, 10 Domestic (India), 10 Sector-wise — for Market Trends filters.
+ * Static fallback when Gemini subject headlines are unavailable.
+ * Categories: STOCK | DEBT | CRYPTO | MUTUAL_FUND (~90% India-focused, ~10% global crypto).
  */
 
 import type { MarketNewsItemDto } from './news.dto';
@@ -9,287 +9,195 @@ type Seed = {
   headline: string;
   summary: string;
   url: string;
-  category: 'Global' | 'Domestic' | 'Sector-wise';
+  category: 'STOCK' | 'DEBT' | 'CRYPTO' | 'MUTUAL_FUND';
   impact: 'High' | 'Med' | 'Low';
   hoursAgo: number;
 };
 
-const GLOBAL: Seed[] = [
+/** India markets — equities */
+const STOCK_INDIA: Seed[] = [
   {
-    headline: 'Major central banks signal data-dependent policy into next quarter',
+    headline: 'Nifty breadth mixed as heavyweights offset broader weakness',
     summary:
-      'Policymakers reiterated that inflation and labour prints will drive the pace of easing or holds, keeping volatility elevated in rate-sensitive assets.',
-    url: 'https://www.imf.org/en/News',
-    category: 'Global',
-    impact: 'High',
+      'Participants cited FII positioning and crude-INR dynamics; stock pickers focused on earnings visibility into the next quarter.',
+    url: 'https://www.nseindia.com/',
+    category: 'STOCK',
+    impact: 'Med',
     hoursAgo: 1,
   },
   {
-    headline: 'Dollar index steadies as traders weigh growth vs. recession odds',
+    headline: 'Sensex holds range as investors weigh domestic flows vs. global yields',
     summary:
-      'FX desks cited thinner liquidity and month-end flows; EM portfolios saw modest rebalancing away from pure USD cash.',
-    url: 'https://www.federalreserve.gov/monetarypolicy.htm',
-    category: 'Global',
-    impact: 'Med',
+      'Index futures implied muted opening risk; mid-caps saw selective accumulation on relative valuation arguments.',
+    url: 'https://www.bseindia.com/',
+    category: 'STOCK',
+    impact: 'Low',
     hoursAgo: 3,
   },
   {
-    headline: 'Oil benchmarks whipsaw on supply outlook and inventory data',
+    headline: 'Large-cap IT sees two-way flow ahead of US tech earnings cluster',
     summary:
-      'Crude moved in a wide range after weekly stockpiles and OPEC+ commentary; energy equities tracked the complex closely.',
-    url: 'https://www.iea.org/news',
-    category: 'Global',
-    impact: 'High',
+      'Deal commentary and margin guardrails stayed in focus; INR hedging costs influenced near-term sentiment.',
+    url: 'https://www.nseindia.com/market-data/new-stock-exchange-listings',
+    category: 'STOCK',
+    impact: 'Med',
     hoursAgo: 5,
   },
   {
-    headline: 'European equities digest PMI surprises and regional growth fears',
+    headline: 'Banking index in focus as street models NIM path under competitive deposit pricing',
     summary:
-      'Cyclicals lagged defensives as services prints missed in several economies; bond yields slipped on safe-haven bids.',
-    url: 'https://www.ecb.europa.eu/press/html/index.en.html',
-    category: 'Global',
-    impact: 'Med',
+      'Credit growth narratives in retail and SME competed with funding-cost worries; stock-specific outcomes diverged.',
+    url: 'https://www.rbi.org.in/',
+    category: 'STOCK',
+    impact: 'High',
     hoursAgo: 7,
   },
   {
-    headline: 'US tech megacaps lead as AI capex narratives stay in focus',
+    headline: 'Domestic cyclicals react to PMI and GST-led consumption proxies',
     summary:
-      'Investors differentiated between monetisation timelines and infrastructure spend; semis and cloud names saw two-way flow.',
-    url: 'https://www.sec.gov/news/pressreleases',
-    category: 'Global',
-    impact: 'Med',
+      'Industrials and consumer discretionary saw event-driven moves; liquidity remained adequate in the cash segment.',
+    url: 'https://www.investindia.gov.in/',
+    category: 'STOCK',
+    impact: 'Low',
     hoursAgo: 9,
   },
   {
-    headline: 'Asian markets mixed after China activity data and regional trade figures',
+    headline: 'Primary market: anchor demand steady as issuers calibrate valuations',
     summary:
-      'Exporters and materials reacted to shipment volumes; India-relative flows drew attention on relative valuation arguments.',
-    url: 'https://www.worldbank.org/en/news',
-    category: 'Global',
-    impact: 'Low',
-    hoursAgo: 11,
-  },
-  {
-    headline: 'Global bond funds see inflows as investors extend duration cautiously',
-    summary:
-      'Fixed-income strategists noted demand for quality sovereign paper amid equity dispersion and event risk in H2.',
-    url: 'https://www.bis.org/',
-    category: 'Global',
-    impact: 'Low',
-    hoursAgo: 13,
-  },
-  {
-    headline: 'Commodity complex: industrial metals pause after a strong run',
-    summary:
-      'Copper and aluminium paused as China property indicators stayed soft; gold held bid on real-rate chatter.',
-    url: 'https://www.wto.org/english/news_e/news_e.htm',
-    category: 'Global',
-    impact: 'Low',
-    hoursAgo: 15,
-  },
-  {
-    headline: 'Cross-border M&A pipeline stirs as financing conditions ease slightly',
-    summary:
-      'Advisers reported more strategic talks in healthcare and software; antitrust timelines remain a key execution risk.',
-    url: 'https://unctad.org/topic/investment/world-investment-report',
-    category: 'Global',
-    impact: 'Low',
-    hoursAgo: 17,
-  },
-  {
-    headline: 'Hedge funds trim gross exposure into macro event cluster',
-    summary:
-      'Prime brokers noted reduced leverage in crowded factor books while macro pods added selective rates and FX hedges.',
-    url: 'https://www.oecd.org/newsroom/',
-    category: 'Global',
+      'Book-building discipline improved versus prior cycles; long-only accounts emphasised governance and float.',
+    url: 'https://www.sebi.gov.in/',
+    category: 'STOCK',
     impact: 'Med',
-    hoursAgo: 19,
+    hoursAgo: 11,
   },
 ];
 
-const DOMESTIC: Seed[] = [
+/** India — rates, bonds, liquidity */
+const DEBT_INDIA: Seed[] = [
   {
-    headline: 'Nifty holds key levels as FII flows and crude INR interplay',
+    headline: 'RBI guidance keeps markets focused on durable liquidity and transmission',
     summary:
-      'Index heavyweights saw stock-specific moves; participants watched OI build-up and global cues for the next leg.',
-    url: 'https://www.nseindia.com/',
-    category: 'Domestic',
-    impact: 'Med',
+      'Short-end rates moved in a narrow band; participants parsed commentary on inflation persistence and the policy path.',
+    url: 'https://www.rbi.org.in/',
+    category: 'DEBT',
+    impact: 'High',
     hoursAgo: 2,
   },
   {
-    headline: 'RBI commentary keeps focus on inflation trajectory and liquidity',
+    headline: 'G-Sec curve debates term premium as insurance and pension demand stays firm',
     summary:
-      'Money markets parsed guidance on durable liquidity and transmission; short-end rates moved within a narrow band.',
-    url: 'https://www.rbi.org.in/',
-    category: 'Domestic',
-    impact: 'High',
+      'Actuarial buyers reportedly extended at the long end while banks managed SLR and HTM buckets carefully.',
+    url: 'https://www.ccilindia.com/',
+    category: 'DEBT',
+    impact: 'Med',
     hoursAgo: 4,
   },
   {
-    headline: 'SEBI continues push on transparency for intermediaries and disclosures',
+    headline: 'Corporate bond primary sees selective appetite for AAA and PSU paper',
     summary:
-      'Market structure watchers expect incremental clarity on retail participation safeguards and corporate governance norms.',
+      'Spreads versus G-Secs remained issuer-specific; offshore funding conditions influenced private placement calendars.',
     url: 'https://www.sebi.gov.in/',
-    category: 'Domestic',
-    impact: 'Med',
+    category: 'DEBT',
+    impact: 'Low',
     hoursAgo: 6,
   },
   {
-    headline: 'Direct tax collections trend in focus ahead of quarterly review',
+    headline: 'Money-market funds and T-bills in focus as quarter-end approaches',
     summary:
-      'Analysts linked revenue prints to nominal GDP and compliance; bond vigilantes watched the fiscal glide path.',
-    url: 'https://www.incometax.gov.in/iec/foportal/',
-    category: 'Domestic',
-    impact: 'Low',
+      'Treasury desks cited tight but orderly conditions; CP/CD issuers monitored rollover risk closely.',
+    url: 'https://www.rbi.org.in/Scripts/BS_PressReleaseDisplay.aspx',
+    category: 'DEBT',
+    impact: 'Med',
     hoursAgo: 8,
   },
   {
-    headline: 'GST collections and compliance metrics tracked for consumption pulse',
+    headline: 'Retail FD repricing continues as banks compete for stable funding',
     summary:
-      'State-wise distribution and e-invoice adoption remained talking points for services vs. manufacturing mix.',
-    url: 'https://www.gst.gov.in/',
-    category: 'Domestic',
+      'Customers compared tenors and small-finance bank offers; advisors highlighted credit quality and deposit insurance limits.',
+    url: 'https://www.rbi.org.in/Scripts/Faq.aspx?Id=43',
+    category: 'DEBT',
     impact: 'Low',
     hoursAgo: 10,
   },
-  {
-    headline: 'Primary market: IPO pipeline and anchor quotas stay on investor radar',
-    summary:
-      'Book-building dynamics and grey-market chatter aside, long-only accounts emphasised post-listing liquidity and governance.',
-    url: 'https://www.bseindia.com/markets/PublicIssues.html',
-    category: 'Domestic',
-    impact: 'Med',
-    hoursAgo: 12,
-  },
-  {
-    headline: 'Rupee trades with oil and US yields as key overnight drivers',
-    summary:
-      'Exporters layered hedges while importers watched CBIC-related timelines; RBI FX operations referenced only obliquely.',
-    url: 'https://www.rbi.org.in/Scripts/BS_PressReleaseDisplay.aspx',
-    category: 'Domestic',
-    impact: 'Med',
-    hoursAgo: 14,
-  },
-  {
-    headline: 'Mutual fund SIP flows cited as structural domestic equity support',
-    summary:
-      'AMC commentary highlighted continued systematic plans into flex-cap and index hybrids despite headline index chop.',
-    url: 'https://www.amfiindia.com/',
-    category: 'Domestic',
-    impact: 'Low',
-    hoursAgo: 16,
-  },
-  {
-    headline: 'Insurance and pension assets in focus for long-duration G-Sec demand',
-    summary:
-      'Actuarial buyers reportedly extended portfolios at the long end as term-premium debates continued.',
-    url: 'https://irdai.gov.in/',
-    category: 'Domestic',
-    impact: 'Low',
-    hoursAgo: 18,
-  },
-  {
-    headline: 'State development loans see steady appetite from banks and PF trusts',
-    summary:
-      'Spreads versus G-Secs were debated state by state; power and transport names drew dedicated specialist desks.',
-    url: 'https://www.ccilindia.com/',
-    category: 'Domestic',
-    impact: 'Low',
-    hoursAgo: 20,
-  },
 ];
 
-const SECTOR: Seed[] = [
+/** India — mutual funds */
+const MF_INDIA: Seed[] = [
   {
-    headline: 'Banking: margin outlook debated as deposit pricing stays competitive',
+    headline: 'SIP flows cited as structural support for domestic equity mutual funds',
     summary:
-      'Analysts trimmed or held NIM assumptions while credit growth in retail and SME stayed the narrative anchor.',
-    url: 'https://www.rbi.org.in/Scripts/BS_ViewBulletin.aspx',
-    category: 'Sector-wise',
+      'AMCs highlighted continued systematic plans into flex-cap and index hybrids despite headline index chop.',
+    url: 'https://www.amfiindia.com/',
+    category: 'MUTUAL_FUND',
     impact: 'Med',
-    hoursAgo: 1.5,
+    hoursAgo: 2.5,
   },
   {
-    headline: 'IT services: deal ramp and Gen-AI monetisation timelines under scrutiny',
+    headline: 'Debt MF categories see rotation as investors weigh duration vs. credit risk',
     summary:
-      'Large-caps guided for measured hiring; mid-caps highlighted vertical-specific digital pipelines.',
-    url: 'https://www.nasscom.in/',
-    category: 'Sector-wise',
+      'Short-duration and corporate bond funds drew comparisons on YTM; credit spreads stayed on surveillance lists.',
+    url: 'https://www.amfiindia.com/investor-corner/online-center',
+    category: 'MUTUAL_FUND',
     impact: 'Med',
-    hoursAgo: 3.5,
-  },
-  {
-    headline: 'Pharma: USFDA inspection cadence and API sourcing remain key overhangs',
-    summary:
-      'Formulation exporters balanced pricing pressure with cost controls; domestic branded generics saw steady offtake.',
-    url: 'https://cdsco.gov.in/',
-    category: 'Sector-wise',
-    impact: 'High',
     hoursAgo: 5.5,
   },
   {
-    headline: 'Auto: PV wholesales and EV penetration tracked month on month',
+    headline: 'Hybrid and balanced advantage funds in focus for glide-path investors',
     summary:
-      'OEM commentary cited financing availability and monsoon-linked rural demand as swing factors for two-wheelers.',
-    url: 'https://www.siam.in/',
-    category: 'Sector-wise',
+      'Advisers discussed equity-debt mix rules and rebalancing frequency for clients nearing goals.',
+    url: 'https://www.sebi.gov.in/',
+    category: 'MUTUAL_FUND',
     impact: 'Low',
-    hoursAgo: 7.5,
+    hoursAgo: 8.5,
   },
   {
-    headline: 'FMCG: volume growth vs. premiumisation debated across urban and rural',
+    headline: 'Index and ETF adoption rises as cost sensitivity shapes advisor model portfolios',
     summary:
-      'Margin recovery from softer input costs competed with competitive intensity in staples and beverages.',
-    url: 'https://ficci.in/',
-    category: 'Sector-wise',
+      'Tracking error and liquidity on exchange remained key due-diligence items for institutional-sized tickets.',
+    url: 'https://www.nseindia.com/market-data/etf',
+    category: 'MUTUAL_FUND',
     impact: 'Low',
-    hoursAgo: 9.5,
+    hoursAgo: 12.5,
   },
   {
-    headline: 'Oil & gas: refining cracks and marketing margins swing with inventory data',
+    headline: 'ELSS seasonality noted; tax-saving equity funds see measured inflows',
     summary:
-      'OMCs saw trading interest around policy on retail fuels; explorers tracked global benchmark moves.',
-    url: 'https://www.petroleum.nic.in/',
-    category: 'Sector-wise',
-    impact: 'High',
-    hoursAgo: 11.5,
-  },
-  {
-    headline: 'Metals: China property signals and inventory on exchanges drive sentiment',
-    summary:
-      'Steel spreads were watched closely; aluminium and zinc reacted to power-cost narratives.',
-    url: 'https://mines.gov.in/',
-    category: 'Sector-wise',
-    impact: 'Med',
-    hoursAgo: 13.5,
-  },
-  {
-    headline: 'Infrastructure and capital goods: order inflows vs. execution lag in focus',
-    summary:
-      'Roads, rails, and renewables saw headline awards; working capital cycles stayed a stock-picker’s theme.',
-    url: 'https://infra.gov.in/',
-    category: 'Sector-wise',
+      'Distributors emphasised lock-in discipline and suitability versus other 80C instruments.',
+    url: 'https://www.incometax.gov.in/iec/foportal/',
+    category: 'MUTUAL_FUND',
     impact: 'Low',
     hoursAgo: 15.5,
   },
+];
+
+/** ~10% of feed — global crypto context */
+const CRYPTO_GLOBAL: Seed[] = [
   {
-    headline: 'Real estate: pre-sales and launch pipelines diverge by micro-market',
+    headline: 'Bitcoin volatility compresses as majors track macro liquidity expectations',
     summary:
-      'Listed developers highlighted balance-sheet discipline; rental yields in commercial stayed a talking point.',
-    url: 'https://maharera.mahaonline.gov.in/',
-    category: 'Sector-wise',
-    impact: 'Low',
-    hoursAgo: 17.5,
+      'Derivatives open interest stabilised after a busy week; funding rates flipped briefly across large venues.',
+    url: 'https://www.coindesk.com/',
+    category: 'CRYPTO',
+    impact: 'High',
+    hoursAgo: 1.5,
   },
   {
-    headline: 'Telecom: ARPU trajectory and capex intensity shape investor positioning',
+    headline: 'Ethereum network upgrades and L2 activity stay in focus for allocators',
     summary:
-      'Spectrum dues and 5G rollout economics remained central to consensus sum-of-the-parts debates.',
-    url: 'https://www.trai.gov.in/',
-    category: 'Sector-wise',
+      'Validators and restaking narratives competed with fee-market dynamics; regulatory headlines moved spot correlations.',
+    url: 'https://ethereum.org/en/',
+    category: 'CRYPTO',
     impact: 'Med',
-    hoursAgo: 19.5,
+    hoursAgo: 4.5,
+  },
+  {
+    headline: 'Global stablecoin rules advance as jurisdictions align reporting expectations',
+    summary:
+      'Exchanges cited compliance investments; treasury desks monitored reserve transparency and redemption latency.',
+    url: 'https://www.fatf-gafi.org/',
+    category: 'CRYPTO',
+    impact: 'Med',
+    hoursAgo: 7.5,
   },
 ];
 
@@ -297,18 +205,19 @@ function toDto(seed: Seed, baseMs: number): MarketNewsItemDto {
   const ms = baseMs - Math.round(seed.hoursAgo * 3600000);
   return {
     headline: seed.headline,
-    source: '',
+    source: 'FinXpert Curated',
     summary: seed.summary,
     url: seed.url,
     thumbnail: null,
     category: seed.category,
     impact: seed.impact,
     time: new Date(ms).toISOString(),
+    sentiment: 'Neutral',
   };
 }
 
-/** 30 curated items: 10 Global, 10 Domestic, 10 Sector-wise (deterministic categories). */
+/** Curated subject headlines when Gemini is unavailable (~90% India, ~10% global crypto by count). */
 export function getCuratedMarketNewsFallback(baseTimeMs = Date.now()): MarketNewsItemDto[] {
-  const seeds = [...GLOBAL, ...DOMESTIC, ...SECTOR];
+  const seeds = [...STOCK_INDIA, ...DEBT_INDIA, ...MF_INDIA, ...CRYPTO_GLOBAL];
   return seeds.map((s) => toDto(s, baseTimeMs));
 }

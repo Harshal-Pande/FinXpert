@@ -40,12 +40,12 @@ export class AssetsController {
   }
 
   @Put(':id')
-  update(
+  updateInvestment(
     @Param('clientId', ParseUUIDPipe) clientId: string,
     @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: UpdateAssetDto,
   ) {
-    return this.assetsService.update(clientId, id, dto);
+    return this.assetsService.updateInvestment(clientId, id, dto);
   }
 
   @Delete(':id')

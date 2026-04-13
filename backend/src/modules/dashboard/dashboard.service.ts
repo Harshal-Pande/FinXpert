@@ -22,7 +22,7 @@ export interface RecentNewsItem {
   summary: string;
   source?: string;
   impact: 'High' | 'Med' | 'Low';
-  category: 'Global' | 'Domestic' | 'Sector-wise';
+  category: 'STOCK' | 'DEBT' | 'CRYPTO' | 'MUTUAL_FUND';
   timestamp: string;
   url: string;
   thumbnail?: string;
@@ -110,6 +110,50 @@ export class DashboardService {
       url: n.url,
       thumbnail: n.thumbnail ?? undefined,
     }));
+  }
+
+  private bookCategorySums(investments: Investment[]): Record<
+    'STOCK' | 'DEBT' | 'CRYPTO' | 'MUTUAL_FUND',
+    number
+  > {
+    const sums = { STOCK: 0, DEBT: 0, CRYPTO: 0, MUTUAL_FUND: 0 };
+    for (const inv of investments) {
+      if (inv.category in sums) {
+        sums[inv.category as keyof typeof sums] += inv.total_value;
+      }
+    }
+    return sums;
+  }
+
+  /**
+   * Book-level AUM narrative from stored holdings (no extra model call).
+   */
+  private buildAiPortfolioSummary(
+    totalAUM: number,
+    sums: { STOCK: number; DEBT: number; CRYPTO: number; MUTUAL_FUND: number },
+  ): string {
+    if (totalAUM <= 0) {
+      return 'No aggregate AUM on record yet. Add client investments to produce a book-level allocation summary.';
+    }
+    const pct = (v: number) => (v / totalAUM) * 100;
+    const pStock = pct(sums.STOCK);
+    const pDebt = pct(sums.DEBT);
+    const pMf = pct(sums.MUTUAL_FUND);
+    const pCrypto = pct(sums.CRYPTO);
+    const equityLike = pStock + pMf;
+
+    const lead = `Across the database, AUM is about ${pStock.toFixed(0)}% stocks, ${pMf.toFixed(0)}% mutual funds, ${pDebt.toFixed(0)}% debt, and ${pCrypto.toFixed(0)}% crypto.`;
+
+    if (equityLike >= 58 && pDebt < 18) {
+      return `${lead} The book is equity-heavy; consider increasing 'Debt' allocation for suitable clients given RBI rate volatility and higher reinvestment certainty in fixed income.`;
+    }
+    if (pCrypto >= 12) {
+      return `${lead} Crypto is a double-digit share of AUM; review concentration, liquidity, and mandate fit client-by-client.`;
+    }
+    if (pDebt >= 42) {
+      return `${lead} The aggregate book skews defensive; confirm return-seeking clients are not unintentionally below growth targets versus their IPS.`;
+    }
+    return `${lead} Allocation looks moderate at the advisor level; continue monitoring drift versus model sleeves.`;
   }
 
   private buildClientAllocationMap(investments: InvestmentWithClient[]): Map<string, ClientAgg> {
@@ -461,6 +505,8 @@ export class DashboardService {
     );
 
     const totalAUM = investments.reduce((sum, inv) => sum + inv.total_value, 0);
+    const categorySums = this.bookCategorySums(investments);
+    const aiPortfolioSummary = this.buildAiPortfolioSummary(totalAUM, categorySums);
 
     const cashAggregation = investments
       .filter((inv) => inv.category === InvestmentCategory.DEBT)
@@ -514,6 +560,7 @@ export class DashboardService {
       strategicInsights,
       marketPulse,
       recentNews: this.mapNewsToRecent(newsItems.slice(0, 10)),
+      aiPortfolioSummary,
     };
   }
 }

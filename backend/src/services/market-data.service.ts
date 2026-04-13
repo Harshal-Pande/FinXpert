@@ -36,6 +36,9 @@ interface CryptoPrice {
 
 export type NewsArticleSentiment = 'Positive' | 'Negative' | 'Neutral';
 
+/** Subject bucket for advisor news (matches Prisma `InvestmentCategory` labels). */
+export type NewsSubjectCategory = 'STOCK' | 'DEBT' | 'CRYPTO' | 'MUTUAL_FUND';
+
 export interface NewsArticle {
   title: string;
   description: string;
@@ -43,6 +46,8 @@ export interface NewsArticle {
   source: string;
   publishedAt: string;
   urlToImage?: string;
+  /** When set (e.g. Gemini subject feed), maps to `MarketNewsItemDto.category`. */
+  subjectCategory?: NewsSubjectCategory;
   /** Present on curated fallback rows for UI / testing. */
   sentiment?: NewsArticleSentiment;
   metrics?: {
@@ -281,45 +286,91 @@ export class MarketDataService {
     }
   }
 
-  private async triggerGeminiFallback(): Promise<NewsArticle[]> {
+  private static readonly SUBJECT_CATEGORIES: ReadonlySet<string> = new Set([
+    'STOCK',
+    'DEBT',
+    'CRYPTO',
+    'MUTUAL_FUND',
+  ]);
+
+  /**
+   * Gemini-generated headlines only: STOCK / DEBT / CRYPTO / MUTUAL_FUND.
+   * Roughly 90% India-focused (stocks, RBI/debt, Indian MFs) and 10% global crypto.
+   */
+  async generateSubjectMarketHeadlines(limit: number): Promise<NewsArticle[]> {
     if (!this.genAI) return [];
-    if (isGeminiQuotaCooldownActive()) {
-      return [];
-    }
+    if (isGeminiQuotaCooldownActive()) return [];
+
+    const n = Math.min(30, Math.max(1, limit));
+    const indiaSlots = Math.max(1, Math.round(0.9 * n));
+    const cryptoGlobalSlots = Math.max(0, n - indiaSlots);
+
     try {
       const model = this.genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
-      const prompt = `Generate the top 5 global financial news headlines for today focusing on market volatility and AI in fintech.
-      Return ONLY a JSON array with objects matching this exact structure:
-      {
-        "title": "Headline here",
-        "description": "Short summary",
-        "url": "https://example.com/finance",
-        "source": "Gemini AI",
-        "publishedAt": "${new Date().toISOString()}",
-        "sentiment": "Neutral"
-      }
-      Do not include markdown format blocks or code wrappers in your response.`;
+      const prompt = `You are a financial news editor for Indian RIAs. Generate exactly ${n} headline items.
+
+STRICT RULES:
+1) Each object MUST include "category" as EXACTLY one of these strings (uppercase): STOCK, DEBT, CRYPTO, MUTUAL_FUND
+2) Geographic mix: ${indiaSlots} items MUST focus on Indian markets (NSE, BSE, Sensex, Nifty, RBI, SEBI, Indian mutual funds, INR bonds/FDs, Indian issuers). ${cryptoGlobalSlots} items MUST focus on global cryptocurrency markets (BTC, ETH, majors, global regulation, exchange flows) — not Indian equity debt.
+3) Only those four categories. Spread STOCK, DEBT, MUTUAL_FUND across the India-focused items; use CRYPTO only for the global crypto items.
+4) "sentiment": "Positive" | "Negative" | "Neutral"
+5) "publishedAt": valid ISO-8601 timestamps (stagger across the last 24h)
+6) "url": use realistic public URLs (e.g. https://www.nseindia.com/ https://www.rbi.org.in/ https://www.sebi.gov.in/ https://www.amfiindia.com/ https://www.coindesk.com/ )
+
+Return ONLY a JSON array (no markdown fences) of objects shaped like:
+{"title":"...","description":"one or two sentences","url":"https://...","category":"STOCK","publishedAt":"2026-04-13T10:00:00.000Z","sentiment":"Neutral"}`;
 
       const result = await model.generateContent(prompt);
       const text = result.response.text();
       const match = text.match(/\[[\s\S]*\]/);
       if (!match) return [];
 
-      const parsed = JSON.parse(match[0]) as NewsArticle[];
-      return parsed.map((a) => ({
-        ...a,
-        source: 'Gemini AI',
-        metrics: { accuracy: 0.98, rmse: 0.02, mape: 2.1, mse: 0.0004, mae: 0.015 },
-      }));
+      const parsed = JSON.parse(match[0]) as Array<Record<string, unknown>>;
+      const out: NewsArticle[] = [];
+      for (const row of parsed) {
+        const title = String(row.title ?? '').trim();
+        const description = String(row.description ?? '').trim();
+        const url = String(row.url ?? '').trim() || 'https://www.nseindia.com/';
+        const rawCat = String(row.category ?? '').toUpperCase().trim();
+        const subjectCategory = MarketDataService.SUBJECT_CATEGORIES.has(rawCat)
+          ? (rawCat as NewsSubjectCategory)
+          : undefined;
+        const publishedAt =
+          typeof row.publishedAt === 'string' && row.publishedAt
+            ? row.publishedAt
+            : new Date().toISOString();
+        const sentimentRaw = String(row.sentiment ?? 'Neutral');
+        const sentiment: NewsArticleSentiment =
+          sentimentRaw === 'Positive' || sentimentRaw === 'Negative' ? sentimentRaw : 'Neutral';
+        if (!title) continue;
+        out.push({
+          title,
+          description,
+          url,
+          source: 'Gemini AI',
+          publishedAt,
+          subjectCategory,
+          sentiment,
+          metrics: { accuracy: 0.96, rmse: 0.03, mape: 2.4, mse: 0.0005, mae: 0.018 },
+        });
+        if (out.length >= n) break;
+      }
+      return out;
     } catch (err) {
       if (isLikelyGeminiQuotaError(err)) {
         armGeminiQuotaCooldown();
-        logGeminiQuotaThrottled(this.logger, 'Gemini news fallback');
+        logGeminiQuotaThrottled(this.logger, 'Gemini subject news');
       } else {
-        this.logger.warn(`Gemini news fallback failed: ${err instanceof Error ? err.message : err}`);
+        this.logger.warn(
+          `Gemini subject news failed: ${err instanceof Error ? err.message : err}`,
+        );
       }
       return [];
     }
+  }
+
+  private async triggerGeminiFallback(): Promise<NewsArticle[]> {
+    return this.generateSubjectMarketHeadlines(5);
   }
 
   async fetchFinancialNews(

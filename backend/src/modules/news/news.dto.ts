@@ -1,4 +1,5 @@
-export type MarketNewsCategory = 'Global' | 'Domestic' | 'Sector-wise';
+/** Aligned with Prisma `InvestmentCategory` — subject-oriented news buckets only. */
+export type MarketNewsCategory = 'STOCK' | 'DEBT' | 'CRYPTO' | 'MUTUAL_FUND';
 export type MarketNewsImpact = 'High' | 'Med' | 'Low';
 
 export interface MarketNewsItemDto {

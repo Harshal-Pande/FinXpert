@@ -13,7 +13,7 @@ export interface MarketEvent {
   summary: string;
   source?: string;
   impact: 'High' | 'Med' | 'Low';
-  category: 'Global' | 'Domestic' | 'Sector-wise';
+  category: 'STOCK' | 'DEBT' | 'CRYPTO' | 'MUTUAL_FUND';
   timestamp: string;
   url: string;
   thumbnail?: string;

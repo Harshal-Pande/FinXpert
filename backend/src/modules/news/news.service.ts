@@ -1,6 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { MarketDataService } from '../../services/market-data.service';
-import type { NewsArticle, NewsFetchProvider } from '../../services/market-data.service';
+import type { NewsArticle } from '../../services/market-data.service';
 import type { MarketNewsCategory, MarketNewsImpact, MarketNewsItemDto } from './news.dto';
 import { getCuratedMarketNewsFallback } from './curated-fallback-news';
 
@@ -20,37 +20,16 @@ export interface MarketNewsFeedResponse {
   queryUsed: string;
 }
 
-export type NewsScope = 'All' | 'Global' | 'Domestic' | 'Sector-wise';
-
-const DOMESTIC_HINTS =
-  /economic times|moneycontrol|livemint|business\s?standard|ndtv|times of india|hindu|rbi|nse|bse|cnbc.*india|financial express|etmarkets|zee business|india/i;
-
-const SECTOR_HINTS =
-  /\b(auto|bank|banking|pharma|it sector|fmcg|real estate|infrastructure|oil|energy|metal|telecom|defense|renewable)\b/i;
+export type NewsScope = 'All' | 'STOCK' | 'DEBT' | 'CRYPTO' | 'MUTUAL_FUND';
 
 const HIGH_IMPACT_HINTS =
-  /\b(crash|plunge|surge|rbi|fed|rate hike|emergency|default|crisis|record high|record low)\b/i;
-
-/** NewsAPI `q` strings per UI scope. */
-const SCOPE_SEARCH: Record<Exclude<NewsScope, 'All'>, string> = {
-  Global: '("stock market" OR equities OR "Federal Reserve" OR "S&P 500" OR "Wall Street")',
-  Domestic: '(NIFTY OR Sensex OR BSE OR NSE OR RBI OR "Indian stock market" OR rupee)',
-  'Sector-wise':
-    '("sector rotation" OR banking OR pharma OR "IT sector" OR FMCG OR energy OR metals) AND (stocks OR earnings)',
-};
+  /\b(crash|plunge|surge|rbi|rate hike|default|crisis|record high|record low|ban|hack|liquidat)\b/i;
 
 @Injectable()
 export class NewsService {
   private readonly logger = new Logger(NewsService.name);
 
   constructor(private readonly marketData: MarketDataService) {}
-
-  private categorize(source: string, title: string): MarketNewsCategory {
-    const blob = `${source} ${title}`;
-    if (SECTOR_HINTS.test(blob)) return 'Sector-wise';
-    if (DOMESTIC_HINTS.test(blob)) return 'Domestic';
-    return 'Global';
-  }
 
   private inferImpact(title: string, description: string): MarketNewsImpact {
     const blob = `${title} ${description}`.toLowerCase();
@@ -59,20 +38,24 @@ export class NewsService {
     return 'Med';
   }
 
-  private resolveSearchQuery(scope: NewsScope): string {
-    if (scope === 'All') return this.marketData.getDefaultNewsQuery();
-    return SCOPE_SEARCH[scope];
-  }
-
-  private mapProviderToFeedSource(provider: NewsFetchProvider): MarketNewsFeedSource {
-    if (provider === 'newsapi') return 'live';
-    if (provider === 'fallback_gemini') return 'fallback_gemini';
-    if (provider === 'fallback_no_key') return 'fallback_no_api_key';
-    if (provider === 'empty_live') return 'empty_live';
-    return 'fallback_error';
+  private normalizeCategory(
+    raw: string | undefined,
+    title: string,
+    description: string,
+  ): MarketNewsCategory {
+    const u = raw?.toUpperCase().trim();
+    if (u === 'STOCK' || u === 'DEBT' || u === 'CRYPTO' || u === 'MUTUAL_FUND') return u;
+    const blob = `${title} ${description}`.toLowerCase();
+    if (/\b(bitcoin|ethereum|crypto|defi|btc|eth|token|stablecoin|exchange)\b/.test(blob)) {
+      return 'CRYPTO';
+    }
+    if (/\b(mutual fund|amc|sip|nav|mf |etf|index fund)\b/.test(blob)) return 'MUTUAL_FUND';
+    if (/\b(rbi|repo|g-sec|bond|fd\b|fixed deposit|yield|ocr)\b/.test(blob)) return 'DEBT';
+    return 'STOCK';
   }
 
   private toDto(a: NewsArticle): MarketNewsItemDto {
+    const category = this.normalizeCategory(a.subjectCategory, a.title, a.description ?? '');
     return {
       headline: a.title,
       source: a.source,
@@ -80,58 +63,53 @@ export class NewsService {
       url: a.url,
       thumbnail: a.urlToImage ?? null,
       summary: a.description ?? '',
-      category: this.categorize(a.source, a.title),
+      category,
       impact: this.inferImpact(a.title, a.description ?? ''),
       sentiment: a.sentiment,
       metrics: a.metrics,
     };
   }
 
+  private filterByScope(items: MarketNewsItemDto[], scope: NewsScope): MarketNewsItemDto[] {
+    if (scope === 'All') return items;
+    return items.filter((i) => i.category === scope);
+  }
+
+  /**
+   * Subject-oriented headlines via Gemini (STOCK, DEBT, CRYPTO, MUTUAL_FUND; ~90% India, ~10% global crypto).
+   * Falls back to curated static items when Gemini is unavailable.
+   */
   async getMarketNews(limit = 10, scope: NewsScope = 'All'): Promise<MarketNewsFeedResponse> {
     const capped = Math.min(30, Math.max(1, limit));
-    const searchQuery = this.resolveSearchQuery(scope);
-    const { articles, provider, query } = await this.marketData.fetchFinancialNews(
-      searchQuery,
-      Math.max(20, capped),
+    const queryUsed =
+      'Gemini subject news: categories STOCK|DEBT|CRYPTO|MUTUAL_FUND; ~90% Indian markets, ~10% global crypto';
+
+    const fetchCount = scope === 'All' ? capped : Math.min(30, capped * 4);
+    const articles = await this.marketData.generateSubjectMarketHeadlines(fetchCount);
+
+    let feedSource: MarketNewsFeedSource;
+    let pool: MarketNewsItemDto[];
+
+    if (articles.length > 0) {
+      feedSource = 'fallback_gemini';
+      pool = articles
+        .filter((a) => a.title?.trim() && a.url && a.url !== '#')
+        .map((a) => this.toDto(a));
+    } else {
+      this.logger.warn('Subject news: Gemini returned no items; using curated fallback');
+      feedSource = 'curated';
+      pool = getCuratedMarketNewsFallback();
+    }
+
+    const scoped = this.filterByScope(pool, scope);
+    const sorted = [...scoped].sort(
+      (a, b) => new Date(b.time).getTime() - new Date(a.time).getTime(),
     );
 
-    if (provider === 'empty_live') {
-      return {
-        items: [],
-        feedSource: 'empty_live',
-        queryUsed: query,
-      };
-    }
-
-    const pool = [...articles].filter((a) => a.title?.trim() && a.url && a.url !== '#');
-    if (pool.length === 0) {
-      if (provider === 'fallback_no_key' || provider === 'fallback_error') {
-        const curated = getCuratedMarketNewsFallback();
-        return {
-          items: curated,
-          feedSource: 'curated',
-          queryUsed: query,
-        };
-      }
-      this.logger.warn('News feed: no articles with title+url after filter');
-      return {
-        items: [],
-        feedSource: provider === 'newsapi' ? 'empty_live' : this.mapProviderToFeedSource(provider),
-        queryUsed: query,
-      };
-    }
-
-    const sorted = pool
-      .sort(
-        (a, b) =>
-          new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime(),
-      )
-      .slice(0, capped);
-
     return {
-      items: sorted.map((a) => this.toDto(a)),
-      feedSource: this.mapProviderToFeedSource(provider),
-      queryUsed: query,
+      items: sorted.slice(0, capped),
+      feedSource,
+      queryUsed,
     };
   }
 }

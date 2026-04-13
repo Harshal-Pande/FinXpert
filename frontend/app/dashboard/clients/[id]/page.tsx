@@ -7,7 +7,7 @@ import { apiClient } from '@/lib/api/client';
 import { getClientHistory, type PortfolioHistoryPoint } from '@/lib/api/portfolio-history';
 import { createInvestment, type SimpleInvestmentCategory } from '@/lib/api/investments';
 import Link from 'next/link';
-import { User, Briefcase, Send, Shield, ArrowLeft, Plus } from 'lucide-react';
+import { User, Briefcase, Send, Shield, ArrowLeft, Plus, Sparkles } from 'lucide-react';
 import {
   AreaChart,
   Area,
@@ -22,6 +22,10 @@ import Breadcrumb from '@/components/layout/Breadcrumb';
 import AssetVault from '@/components/portfolio/AssetVault';
 import StressTestModal from '@/components/modals/StressTestModal';
 import { StressScenario, StressTestResult } from '@/lib/api/stress-test';
+import {
+  postClientStrategicPlan,
+  type StrategicPlanResponse,
+} from '@/lib/api/strategic-plan';
 
 function getRiskBadgeStyles(riskProfile: string): string {
   const r = (riskProfile ?? '').toLowerCase();
@@ -61,6 +65,10 @@ export default function ClientDetailPage() {
     advice: string;
     status: string;
   } | null>(null);
+
+  const [strategyLoading, setStrategyLoading] = useState(false);
+  const [strategyError, setStrategyError] = useState<string | null>(null);
+  const [strategyResult, setStrategyResult] = useState<StrategicPlanResponse | null>(null);
 
   const reloadClient = useCallback(async () => {
     if (!id) return;
@@ -135,6 +143,21 @@ export default function ClientDetailPage() {
     }, 18);
     return () => window.clearInterval(timer);
   }, [headerTargetScore]);
+
+  const handleGenerateStrategicPlan = async () => {
+    if (!id) return;
+    setStrategyLoading(true);
+    setStrategyError(null);
+    setStrategyResult(null);
+    try {
+      const res = await postClientStrategicPlan(id);
+      setStrategyResult(res);
+    } catch (e) {
+      setStrategyError(e instanceof Error ? e.message : 'Failed to generate strategic plan');
+    } finally {
+      setStrategyLoading(false);
+    }
+  };
 
   const handleSendAdvisory = async () => {
     if (!id) return;
@@ -390,6 +413,8 @@ export default function ClientDetailPage() {
         )}
 
         <AssetVault
+          clientId={client!.id}
+          onInvestmentUpdated={() => void reloadClient()}
           investments={client!.investments ?? []}
           viewMode={viewMode}
           activeSimulation={activeSimulation}
@@ -453,6 +478,53 @@ export default function ClientDetailPage() {
               </div>
             </div>
           )}
+        </div>
+
+        <div className="w-full border-2 border-indigo-900/30 rounded-3xl p-6 mt-8 relative flex flex-col min-h-[120px] bg-gradient-to-b from-indigo-50/40 to-white">
+          <div className="absolute top-4 w-full text-center left-0 text-sm font-medium tracking-wide bg-white shrink-0 sm:px-4">
+            FinXpert AI Strategist
+          </div>
+          <div className="mt-10 space-y-4 px-2 sm:px-4">
+            <p className="text-sm text-slate-600 leading-relaxed max-w-2xl">
+              Data-driven plan from this client&apos;s live profile, category allocation, health score, and modeled
+              Market Meltdown loss (₹). Uses Gemini when configured; otherwise a deterministic book-style fallback.
+            </p>
+            <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+              <button
+                type="button"
+                onClick={() => void handleGenerateStrategicPlan()}
+                disabled={strategyLoading}
+                className="inline-flex items-center justify-center gap-2 rounded-xl bg-indigo-700 px-5 py-2.5 text-sm font-semibold text-white hover:bg-indigo-800 disabled:opacity-50 w-full sm:w-auto"
+              >
+                <Sparkles className="h-4 w-4 shrink-0" />
+                {strategyLoading ? 'Generating…' : 'Generate strategic plan'}
+              </button>
+              {strategyResult ? (
+                <span className="text-xs text-slate-500">
+                  Source: {strategyResult.source === 'gemini' ? 'Gemini' : 'Rule-based fallback'}
+                </span>
+              ) : null}
+            </div>
+            {strategyError ? (
+              <p className="text-sm text-red-600">{strategyError}</p>
+            ) : null}
+            {strategyResult ? (
+              <div className="mt-2 space-y-3 rounded-xl border border-indigo-100 bg-white/80 p-4">
+                <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">
+                  Meltdown loss (modeled) · ₹
+                  {new Intl.NumberFormat('en-IN', { maximumFractionDigits: 0 }).format(
+                    strategyResult.derived.stress_test_loss_inr,
+                  )}{' '}
+                  · Stock {strategyResult.derived.allocation.STOCK}% · MF {strategyResult.derived.allocation.MUTUAL_FUND}%
+                  · Debt {strategyResult.derived.allocation.DEBT}% · Crypto{' '}
+                  {strategyResult.derived.allocation.CRYPTO}%
+                </p>
+                <p className="text-sm text-slate-800 leading-relaxed whitespace-pre-wrap font-medium">
+                  {strategyResult.plan}
+                </p>
+              </div>
+            ) : null}
+          </div>
         </div>
       </div>
 
